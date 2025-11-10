@@ -1,0 +1,19 @@
+T4AITensorCompat.jl
+Copyright 2025 Hiroshi Shinaoka and contributors
+
+This product includes software developed by the ITensor project
+(https://github.com/ITensor/).
+
+===============================================================================
+
+This product includes code derived from ITensors.jl:
+  * src/contraction/densitymatrix.jl
+  Copyright (c) ITensor developers
+  Licensed under the Apache License 2.0
+
+This product includes code derived from ITensorTDVP.jl:
+  * src/contraction/fitalgorithm.jl
+  Copyright (c) ITensorTDVP.jl developers
+  Licensed under the Apache License 2.0
+
+For the full text of the Apache License 2.0, see the LICENSE file.
