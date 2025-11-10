@@ -466,6 +466,57 @@
         @test abs(norm(stt1) - ITensorMPS.norm(mps_direct)) / ITensorMPS.norm(mps_direct) < 1e-13
     end
 
+    @testset "TensorTrain isapprox function" begin
+        # Create test indices
+        i1 = Index(2, "i1")
+        i2 = Index(3, "i2")
+        i3 = Index(2, "i3")
+
+        # Create test tensors
+        t1a = random_itensor(i1, i2)
+        t2a = random_itensor(i2, i3)
+        stt1 = TensorTrain([t1a, t2a])
+
+        t1b = random_itensor(i1, i2)
+        t2b = random_itensor(i2, i3)
+        stt2 = TensorTrain([t1b, t2b])
+
+        # Test that identical tensor trains are approximately equal
+        @test isapprox(stt1, stt1)
+        @test isapprox(stt1, stt1; atol=1e-10)
+        @test isapprox(stt1, stt1; rtol=1e-8)
+
+        # Test that different tensor trains are not approximately equal (with strict tolerance)
+        @test !isapprox(stt1, stt2; atol=1e-15, rtol=1e-15)
+
+        # Test with explicit atol parameter
+        @test isapprox(stt1, stt1; atol=1e-10)
+
+        # Test with explicit rtol parameter
+        @test isapprox(stt1, stt1; rtol=1e-8)
+
+        # Test that isapprox works with Base.isapprox (≈ operator)
+        @test stt1 ≈ stt1
+        # Note: ≈ operator doesn't accept keyword arguments directly
+        # Use isapprox function instead for custom tolerances
+        @test !isapprox(stt1, stt2; atol=1e-15, rtol=1e-15)
+
+        # Test that isapprox is consistent with dist
+        # If distance is small, they should be approximately equal
+        small_diff = stt1 + 1e-12 * stt2
+        @test isapprox(stt1, small_diff; atol=1e-10)
+
+        # Test that isapprox handles different lengths correctly
+        t3 = random_itensor(i1, i2)
+        stt3 = TensorTrain([t3])  # Different length
+        @test !isapprox(stt1, stt3)  # Should return false for different lengths
+
+        # Test promote_leaf_eltypes extension
+        using LinearAlgebra
+        eltype_result = LinearAlgebra.promote_leaf_eltypes(stt1)
+        @test eltype_result isa Type
+    end
+
     @testset "Error handling for tensor train addition" begin
         # Create test indices
         i1 = Index(2, "i1")
