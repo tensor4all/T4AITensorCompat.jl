@@ -27,7 +27,7 @@ import LinearAlgebra
 export TensorTrain
 export MPS, MPO, AbstractMPS  # Temporary aliases for migration
 export contract
-export fit  # Fit function for summing multiple tensor trains with coefficients
+#export fit  # Fit function for summing multiple tensor trains with coefficients
 export truncate, truncate!
 export maxlinkdim, siteinds
 export linkinds, linkind, findsite, findsites, isortho, orthocenter  # Functions for compatibility
