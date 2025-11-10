@@ -255,6 +255,26 @@ function dist(stt1::TensorTrain, stt2::TensorTrain)
 end
 
 """
+    isapprox(stt1::TensorTrain, stt2::TensorTrain; kwargs...)
+
+Check if two TensorTrain objects are approximately equal.
+
+This function delegates to ITensorMPS.isapprox for efficient computation.
+"""
+function Base.isapprox(stt1::TensorTrain, stt2::TensorTrain; kwargs...)
+    # Check that both tensor trains have the same length
+    if length(stt1.data) != length(stt2.data)
+        return false
+    end
+    
+    # Convert to MPS and delegate to ITensorMPS.isapprox
+    mps1 = ITensorMPS.MPS(stt1)
+    mps2 = ITensorMPS.MPS(stt2)
+    
+    return ITensorMPS.isapprox(mps1, mps2; kwargs...)
+end
+
+"""
     norm(stt::TensorTrain)
 
 Compute the norm (2-norm) of a TensorTrain object.

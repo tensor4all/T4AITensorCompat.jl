@@ -23,6 +23,23 @@ function _random_mpo(rng, sites::Vector{Vector{Index{T}}}; linkdims = 1) where {
     return M
 end
 
+# Helper function to create random MPS
+function _random_mps(sites::Vector{Index{T}}; linkdims = 1) where {T}
+    _random_mps(Random.GLOBAL_RNG, sites; linkdims = linkdims)
+end
+
+function _random_mps(rng, sites::Vector{Index{T}}; linkdims = 1) where {T}
+    N = length(sites)
+    links = [Index(linkdims, "Link,n=$n") for n = 1:N-1]
+    M = ITensorMPS.MPS(N)
+    M[1] = random_itensor(rng, sites[1], links[1])
+    M[N] = random_itensor(rng, links[N-1], sites[N])
+    for n = 2:N-1
+        M[n] = random_itensor(rng, links[n-1], sites[n], links[n])
+    end
+    return M
+end
+
 function relative_error(tt1::TensorTrain, tt2::TensorTrain)
     sites = T4AITensorCompat.siteinds(tt1)
     tt1_full = Array(reduce(*, tt1), sites)

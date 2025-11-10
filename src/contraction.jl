@@ -30,6 +30,7 @@ import ITensorMPS: setleftlim!, setrightlim!
 import LinearAlgebra
 include("contraction/fitalgorithm.jl")
 include("contraction/densitymatrix.jl")
+include("contraction/fitalgorithm_sum.jl")
 end
 
 """
@@ -80,4 +81,50 @@ function contract(M1::TensorTrain, M2::TensorTrain; alg=Algorithm"fit"(), cutoff
     else
         error("Unknown algorithm: $alg")
     end
+end
+
+"""
+    fit(input_states::AbstractVector{TensorTrain}, init::TensorTrain; coeffs::AbstractVector{<:Number}=ones(Int, length(input_states)), kwargs...)
+
+Fit a linear combination of multiple TensorTrain objects to approximate their weighted sum.
+
+This function uses a variational fitting algorithm to find a TensorTrain that approximates
+the weighted sum of multiple input tensor trains. The algorithm iteratively optimizes the
+bond dimensions while maintaining numerical accuracy.
+
+# Arguments
+- `input_states::AbstractVector{TensorTrain}`: Vector of tensor trains to sum
+- `init::TensorTrain`: Initial guess for the fitted tensor train
+
+# Keyword Arguments
+- `coeffs::AbstractVector{<:Number}`: Coefficients for each input state (default: all ones)
+- `cutoff::Real`: Truncation cutoff for singular values (default: `default_cutoff()`)
+- `maxdim::Int`: Maximum bond dimension (default: `default_maxdim()`)
+- `nsweeps::Int`: Number of sweeps for the fit algorithm (default: `default_nsweeps()`)
+- `kwargs...`: Additional keyword arguments passed to the underlying algorithm
+
+# Returns
+- `TensorTrain`: The fitted tensor train approximating the weighted sum
+
+# Examples
+```julia
+# Fit a weighted sum of three tensor trains
+result = fit([tt1, tt2, tt3], init_tt; coeffs=[1.0, 2.0, 0.5])
+```
+"""
+function fit(
+    input_states::AbstractVector{TensorTrain},
+    init::TensorTrain;
+    coeffs::AbstractVector{<:Number} = ones(Int, length(input_states)),
+    kwargs...,
+)::TensorTrain
+    # Convert TensorTrain objects to ITensorMPS.MPS
+    mps_inputs = [ITensorMPS.MPS(tt) for tt in input_states]
+    mps_init = ITensorMPS.MPS(init)
+    
+    # Call the fit function from ContractionImpl
+    mps_result = ContractionImpl.fit(mps_inputs, mps_init; coeffs=coeffs, kwargs...)
+    
+    # Convert back to TensorTrain
+    return TensorTrain(mps_result, init.llim, init.rlim)
 end

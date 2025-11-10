@@ -18,21 +18,32 @@ limitations under the License.
 
 module T4AITensorCompat
 
-import ITensors: ITensors, ITensor, Index, dim, uniqueinds
+import ITensors: ITensors, ITensor, Index, dim, uniqueinds, commoninds, uniqueind
 import ITensorMPS
 import ITensors: Algorithm, @Algorithm_str
 import LinearAlgebra
 
 # Export public API
 export TensorTrain
+export MPS, MPO, AbstractMPS  # Temporary aliases for migration
 export contract
+export fit  # Fit function for summing multiple tensor trains with coefficients
 export truncate, truncate!
 export maxlinkdim, siteinds
+export linkinds, linkind, findsite, findsites, isortho, orthocenter  # Functions for compatibility
 export default_maxdim, default_cutoff, default_nsweeps
 
 
 include("defaults.jl")
 include("tensortrain.jl")
+
+# Temporary type aliases for migration (these map to TensorTrain)
+# Defined after TensorTrain is loaded
+const MPS = TensorTrain
+const MPO = TensorTrain
+const AbstractMPS = TensorTrain
+
 include("contraction.jl")
+include("itensormps_compat.jl")  # Compatibility functions for ITensorMPS API
 
 end
