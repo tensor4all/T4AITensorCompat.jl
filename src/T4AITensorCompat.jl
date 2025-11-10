@@ -32,6 +32,7 @@ export truncate, truncate!
 export maxlinkdim, siteinds
 export linkinds, linkind, findsite, findsites, isortho, orthocenter  # Functions for compatibility
 export default_maxdim, default_cutoff, default_nsweeps
+export lognorm  # Log norm function
 
 
 include("defaults.jl")

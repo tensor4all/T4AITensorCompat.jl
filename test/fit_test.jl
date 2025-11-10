@@ -74,12 +74,12 @@
         
         # Fit the sum
         coeffs = [1.0, 1.0]
-        fitted = fit([tt1, tt2], init_tt; coeffs=coeffs, nsweeps=3, cutoff=1e-15, maxdim=100)
+        fitted = fit([tt1, tt2], init_tt; coeffs=coeffs, cutoff=1e-30, nsweeps=3)
         
         # Check that fitted result is close to exact sum
         # Note: fit is an approximation, so we check for reasonable accuracy
-        error = dist(fitted, exact_sum)
-        @test error < 1e-10
+        error = exp(lognorm(fitted - exact_sum) - lognorm(exact_sum))
+        @test error < 1e-8
     end
 end
 

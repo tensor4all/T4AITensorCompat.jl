@@ -297,12 +297,15 @@ Compute the log norm of a TensorTrain object.
 This function delegates to ITensorMPS.lognorm for efficient computation.
 The log norm is useful when the norm may be very large to avoid overflow.
 """
-function ITensorMPS.lognorm(stt::TensorTrain)
+function lognorm(stt::TensorTrain)
     # Convert to MPS and delegate to ITensorMPS.lognorm
     mps = ITensorMPS.MPS(stt)
     
     return ITensorMPS.lognorm(mps)
 end
+
+# Also extend ITensorMPS.lognorm for backward compatibility
+ITensorMPS.lognorm(stt::TensorTrain) = lognorm(stt)
 
 """
 Subtract two TensorTrain objects using ITensors.Algorithm("directsum")

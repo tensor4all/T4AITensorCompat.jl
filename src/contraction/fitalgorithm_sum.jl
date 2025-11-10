@@ -240,6 +240,9 @@ function fit(
     input_states::AbstractVector{MPS},
     init::MPS;
     coeffs::AbstractVector{<:Number} = ones(Int, length(input_states)),
+    cutoff::Real = default_cutoff(),
+    maxdim::Int = default_maxdim(),
+    nsweeps::Int = default_nsweeps(),
     kwargs...,
 )::MPS
     links = ITensors.sim.(linkinds(init))
@@ -249,6 +252,9 @@ function fit(
         reduced_operator,
         init;
         updater = contract_operator_state_updater,
+        cutoff = cutoff,
+        maxdim = maxdim,
+        nsweeps = nsweeps,
         kwargs...,
     )
 end
@@ -257,11 +263,14 @@ function fit(
     input_states::AbstractVector{MPO},
     init::MPO;
     coeffs::AbstractVector{<:Number} = ones(Int, length(input_states)),
+    cutoff::Real = default_cutoff(),
+    maxdim::Int = default_maxdim(),
+    nsweeps::Int = default_nsweeps(),
     kwargs...,
 )::MPO
     to_mps(Ψ::MPO) = MPS([x for x in Ψ])
 
-    res = fit(to_mps.(input_states), to_mps(init); coeffs = coeffs, kwargs...)
+    res = fit(to_mps.(input_states), to_mps(init); coeffs = coeffs, cutoff = cutoff, maxdim = maxdim, nsweeps = nsweeps, kwargs...)
     return MPO([x for x in res])
 end
 
