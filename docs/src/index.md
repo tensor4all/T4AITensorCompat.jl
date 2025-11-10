@@ -29,6 +29,13 @@ truncate
 truncate!
 maxlinkdim
 siteinds
+linkinds
+linkind
+findsite
+findsites
+isortho
+orthocenter
+fit
 ```
 
 ## Default Parameters
