@@ -85,7 +85,7 @@ function contract(M1::TensorTrain, M2::TensorTrain; alg=Algorithm"fit"(), cutoff
 end
 
 """
-    fit(input_states::AbstractVector{TensorTrain}, init::TensorTrain; coeffs::AbstractVector{<:Number}=ones(Int, length(input_states)), kwargs...)
+    fit(input_states::AbstractVector{TensorTrain}, init::TensorTrain; coeffs::AbstractVector{<:Number}=ones(Int, length(input_states)), cutoff::Real=default_cutoff(), maxdim::Int=default_maxdim(), nsweeps::Int=default_nsweeps(), kwargs...)
 
 Fit a linear combination of multiple TensorTrain objects to approximate their weighted sum.
 
@@ -112,9 +112,10 @@ bond dimensions while maintaining numerical accuracy.
 # Fit a weighted sum of three tensor trains
 result = fit([tt1, tt2, tt3], init_tt; coeffs=[1.0, 2.0, 0.5])
 ```
-"""
-#==
+
+# Note
 FIXME (HS): I observed this function is sometime less accurate than direct sum of the input states.
+"""
 function fit(
     input_states::AbstractVector{TensorTrain},
     init::TensorTrain;
@@ -124,6 +125,7 @@ function fit(
     nsweeps::Int = default_nsweeps(),
     kwargs...,
 )::TensorTrain
+    println(stderr, "⚠ Warning: The `fit` function may produce less accurate results than direct sum of the input states. Consider using direct sum (`+`) if accuracy is critical.")
     # Convert TensorTrain objects to ITensorMPS.MPS
     mps_inputs = [ITensorMPS.MPS(tt) for tt in input_states]
     mps_init = ITensorMPS.MPS(init)
@@ -134,4 +136,3 @@ function fit(
     # Convert back to TensorTrain
     return TensorTrain(mps_result, init.llim, init.rlim)
 end
-==#

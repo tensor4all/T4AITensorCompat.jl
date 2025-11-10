@@ -35,6 +35,7 @@ findsite
 findsites
 isortho
 orthocenter
+fit
 lognorm
 ```
 
