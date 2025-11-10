@@ -113,6 +113,8 @@ bond dimensions while maintaining numerical accuracy.
 result = fit([tt1, tt2, tt3], init_tt; coeffs=[1.0, 2.0, 0.5])
 ```
 """
+#==
+FIXME (HS): I observed this function is sometime less accurate than direct sum of the input states.
 function fit(
     input_states::AbstractVector{TensorTrain},
     init::TensorTrain;
@@ -132,3 +134,4 @@ function fit(
     # Convert back to TensorTrain
     return TensorTrain(mps_result, init.llim, init.rlim)
 end
+==#
