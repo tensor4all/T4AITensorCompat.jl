@@ -35,7 +35,7 @@ findsite
 findsites
 isortho
 orthocenter
-fit
+lognorm
 ```
 
 ## Default Parameters

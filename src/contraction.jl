@@ -28,6 +28,7 @@ import ITensorMPS
 import ITensors: Algorithm, @Algorithm_str
 import ITensorMPS: setleftlim!, setrightlim!
 import LinearAlgebra
+import ..default_cutoff, ..default_maxdim, ..default_nsweeps
 include("contraction/fitalgorithm.jl")
 include("contraction/densitymatrix.jl")
 include("contraction/fitalgorithm_sum.jl")
@@ -112,10 +113,15 @@ bond dimensions while maintaining numerical accuracy.
 result = fit([tt1, tt2, tt3], init_tt; coeffs=[1.0, 2.0, 0.5])
 ```
 """
+#==
+FIXME (HS): I observed this function is sometime less accurate than direct sum of the input states.
 function fit(
     input_states::AbstractVector{TensorTrain},
     init::TensorTrain;
     coeffs::AbstractVector{<:Number} = ones(Int, length(input_states)),
+    cutoff::Real = default_cutoff(),
+    maxdim::Int = default_maxdim(),
+    nsweeps::Int = default_nsweeps(),
     kwargs...,
 )::TensorTrain
     # Convert TensorTrain objects to ITensorMPS.MPS
@@ -123,8 +129,9 @@ function fit(
     mps_init = ITensorMPS.MPS(init)
     
     # Call the fit function from ContractionImpl
-    mps_result = ContractionImpl.fit(mps_inputs, mps_init; coeffs=coeffs, kwargs...)
+    mps_result = ContractionImpl.fit(mps_inputs, mps_init; coeffs=coeffs, cutoff=cutoff, maxdim=maxdim, nsweeps=nsweeps, kwargs...)
     
     # Convert back to TensorTrain
     return TensorTrain(mps_result, init.llim, init.rlim)
 end
+==#
