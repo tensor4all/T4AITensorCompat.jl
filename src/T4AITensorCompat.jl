@@ -37,6 +37,7 @@ export random_mps, random_mpo  # Random tensor train generation
 export product  # Official API name (match ITensorMPS)
 export apply    # Backwards-compatible alias
 
+abstract type AbstractTTN end # Abstract type for tree tensor network
 
 include("defaults.jl")
 include("tensortrain.jl")
