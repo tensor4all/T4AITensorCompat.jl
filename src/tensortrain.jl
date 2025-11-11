@@ -184,17 +184,11 @@ function Base.:+(stt1::TensorTrain, stt2::TensorTrain)
 end
 
 """
-Add multiple TensorTrain objects using ITensors.Algorithm("directsum")
+Add multiple TensorTrain objects using ITensors.Algorithm("directsum").
 
-This function computes the sum of multiple tensor trains by:
-1. Converting all TensorTrain objects to ITensorMPS.MPS
-2. Computing the sum using ITensors.Algorithm("directsum") for high precision
-3. Converting the result back to TensorTrain
-
-The result preserves the tensor structure while combining all bond dimensions.
-Uses Algorithm("directsum") instead of default + operator for better numerical precision.
+The sum is computed with Algorithm("directsum") for high precision.
 """
-function Base.:+(stt1::TensorTrain, stt2::TensorTrain, stts...)
+function Base.:+(stt1::TensorTrain, stt2::TensorTrain, stts::Vararg{TensorTrain})
     # Check that all tensor trains have the same length
     lengths = [length(stt.data) for stt in [stt1, stt2, stts...]]
     if !all(l -> l == lengths[1], lengths)
@@ -401,7 +395,7 @@ This function computes the difference of multiple tensor trains by:
 The result preserves the tensor structure while combining all bond dimensions.
 Uses Algorithm("directsum") for optimal numerical precision.
 """
-function Base.:-(stt1::TensorTrain, stt2::TensorTrain, stts...)
+function Base.:-(stt1::TensorTrain, stt2::TensorTrain, stts::Vararg{TensorTrain})
     # Check that all tensor trains have the same length
     lengths = [length(stt.data) for stt in [stt1, stt2, stts...]]
     if !all(l -> l == lengths[1], lengths)
@@ -433,7 +427,7 @@ This function computes the sum of tensor trains using ITensors.Algorithm("direct
 Note: Algorithm parameter is accepted for interface compatibility but Algorithm("directsum") is always used
 for optimal numerical precision.
 """
-function Base.:+(alg::Algorithm, stt1::TensorTrain, stts...)
+function Base.:+(alg::Algorithm, stt1::TensorTrain, stts::Vararg{TensorTrain})
     # Check that all tensor trains have the same length
     lengths = [length(stt.data) for stt in [stt1, stts...]]
     if !all(l -> l == lengths[1], lengths)
@@ -459,7 +453,7 @@ Add TensorTrain objects with algorithm keyword argument.
 This function accepts an `alg` keyword argument for interface compatibility,
 but always uses Algorithm("directsum") for optimal numerical precision.
 """
-function Base.:+(stt1::TensorTrain, stts...; alg::Union{String,Algorithm}="directsum", kwargs...)
+function Base.:+(stt1::TensorTrain, stts::Vararg{TensorTrain}; alg::Union{String,Algorithm}="directsum", kwargs...)
     alg_obj = alg isa String ? Algorithm(alg) : alg
     return +(alg_obj, stt1, stts...)
 end
@@ -633,4 +627,347 @@ tt_replaced = replaceprime(tt, 2 => 1; inds=sites)  # Replace only specific indi
 """
 function ITensors.replaceprime(tt::TensorTrain, p1_p2::Pair; kwargs...)
     return TensorTrain([ITensors.replaceprime(t, p1_p2; kwargs...) for t in tt.data], tt.llim, tt.rlim)
+end
+
+"""
+    linkinds(tt::TensorTrain)
+
+Extract the link (bond) indices from a TensorTrain.
+
+This function returns a vector of link indices connecting adjacent tensors
+in the tensor train. For a TensorTrain of length N, it returns N-1 link indices.
+
+# Arguments
+- `tt::TensorTrain`: The tensor train to extract link indices from
+
+# Returns
+- `Vector{Index}`: Vector of link indices connecting adjacent tensors
+"""
+function linkinds(tt::TensorTrain)
+    N = length(tt)
+    if N <= 1
+        return Index[]
+    end
+    links = Index[]
+    for n in 1:(N - 1)
+        # Link index is the common index between tensor n and n+1
+        common = commoninds(tt[n], tt[n + 1])
+        if length(common) != 1
+            error("Expected exactly one common index between tensors $n and $(n+1), got $(length(common))")
+        end
+        push!(links, only(common))
+    end
+    return links
+end
+
+"""
+    linkind(tt::TensorTrain, p::Int)
+
+Get the link index at position p in a TensorTrain.
+
+Position p refers to the link between tensor p and p+1.
+Valid positions are 1 to length(tt)-1.
+
+# Arguments
+- `tt::TensorTrain`: The tensor train
+- `p::Int`: Position of the link (1-indexed, between tensor p and p+1)
+
+# Returns
+- `Index`: The link index at position p
+"""
+function linkind(tt::TensorTrain, p::Int)
+    links = linkinds(tt)
+    if p < 1 || p > length(links)
+        error("Link position $p out of range. Valid range: 1 to $(length(links))")
+    end
+    return links[p]
+end
+
+"""
+    findsite(tt::TensorTrain, site::Index)
+
+Find the position of a site index in a TensorTrain.
+
+This function searches for the site index in the tensor train and returns
+the position (1-indexed) where it is found. Returns `nothing` if not found.
+
+# Arguments
+- `tt::TensorTrain`: The tensor train to search
+- `site::Index`: The site index to find
+
+# Returns
+- `Union{Int, Nothing}`: Position of the site index, or `nothing` if not found
+"""
+function findsite(tt::TensorTrain, site::Index)
+    sites = siteinds(tt)
+    for (pos, site_vec) in enumerate(sites)
+        if site in site_vec
+            return pos
+        end
+    end
+    return nothing
+end
+
+"""
+    findsites(tt::TensorTrain, site::Index)
+
+Find all positions of a site index in a TensorTrain.
+
+This function searches for the site index in the tensor train and returns
+all positions (1-indexed) where it is found.
+
+# Arguments
+- `tt::TensorTrain`: The tensor train to search
+- `site::Index`: The site index to find
+
+# Returns
+- `Vector{Int}`: Vector of positions where the site index is found
+"""
+function findsites(tt::TensorTrain, site::Index)
+    sites = siteinds(tt)
+    positions = Int[]
+    for (pos, site_vec) in enumerate(sites)
+        if site in site_vec
+            push!(positions, pos)
+        end
+    end
+    return positions
+end
+
+"""
+    isortho(tt::TensorTrain)
+
+Check if a TensorTrain is orthogonal (canonical form).
+
+This function checks whether the tensor train is in orthogonal/canonical form
+by delegating to ITensorMPS.isortho after converting to MPS.
+
+# Arguments
+- `tt::TensorTrain`: The tensor train to check
+
+# Returns
+- `Bool`: `true` if the tensor train is orthogonal, `false` otherwise
+"""
+function isortho(tt::TensorTrain)
+    mps = ITensorMPS.MPS(tt)
+    return ITensorMPS.isortho(mps)
+end
+
+"""
+    orthocenter(tt::TensorTrain)
+
+Get the orthogonality center position of a TensorTrain.
+
+This function returns the position of the orthogonality center in the tensor train
+by delegating to ITensorMPS.orthocenter after converting to MPS.
+
+# Arguments
+- `tt::TensorTrain`: The tensor train
+
+# Returns
+- `Int`: Position of the orthogonality center (1-indexed)
+"""
+function orthocenter(tt::TensorTrain)
+    mps = ITensorMPS.MPS(tt)
+    return ITensorMPS.orthocenter(mps)
+end
+
+#===
+Random tensor train generation functions
+====#
+
+import Random
+import ITensorMPS
+
+"""
+    random_mps(sites::Vector{<:Index}; linkdims=1)
+
+Construct a random TensorTrain (MPS) with link dimension `linkdims` which by
+default has element type `Float64`.
+
+`linkdims` can also accept a `Vector{Int}` with
+`length(linkdims) == length(sites) - 1` for constructing an
+MPS with non-uniform bond dimension.
+
+# Arguments
+- `sites::Vector{<:Index}`: Vector of site indices
+- `linkdims::Union{Integer,Vector{<:Integer}}`: Link dimension(s) (default: 1)
+
+# Returns
+- `TensorTrain`: A random tensor train (MPS)
+
+# Examples
+```julia
+sites = [Index(2, "Qubit,n=\$n") for n = 1:5]
+psi = random_mps(sites; linkdims=3)
+```
+"""
+function random_mps(sites::Vector{<:Index}; linkdims::Union{Integer,Vector{<:Integer}}=1)
+    return random_mps(Random.default_rng(), sites; linkdims)
+end
+
+"""
+    random_mps(rng::Random.AbstractRNG, sites::Vector{<:Index}; linkdims=1)
+
+Construct a random TensorTrain (MPS) with link dimension `linkdims` using the specified RNG.
+
+# Arguments
+- `rng::Random.AbstractRNG`: Random number generator
+- `sites::Vector{<:Index}`: Vector of site indices
+- `linkdims::Union{Integer,Vector{<:Integer}}`: Link dimension(s) (default: 1)
+
+# Returns
+- `TensorTrain`: A random tensor train (MPS)
+"""
+function random_mps(rng::Random.AbstractRNG, sites::Vector{<:Index}; linkdims::Union{Integer,Vector{<:Integer}}=1)
+    return random_mps(rng, Float64, sites; linkdims)
+end
+
+"""
+    random_mps(eltype::Type{<:Number}, sites::Vector{<:Index}; linkdims=1)
+
+Construct a random TensorTrain (MPS) with specified element type and link dimension.
+
+# Arguments
+- `eltype::Type{<:Number}`: Element type (e.g., Float64, ComplexF64)
+- `sites::Vector{<:Index}`: Vector of site indices
+- `linkdims::Union{Integer,Vector{<:Integer}}`: Link dimension(s) (default: 1)
+
+# Returns
+- `TensorTrain`: A random tensor train (MPS)
+"""
+function random_mps(eltype::Type{<:Number}, sites::Vector{<:Index}; linkdims::Union{Integer,Vector{<:Integer}}=1)
+    return random_mps(Random.default_rng(), eltype, sites; linkdims)
+end
+
+"""
+    random_mps(rng::Random.AbstractRNG, eltype::Type{<:Number}, sites::Vector{<:Index}; linkdims=1)
+
+Construct a random TensorTrain (MPS) with specified RNG, element type, and link dimension.
+
+# Arguments
+- `rng::Random.AbstractRNG`: Random number generator
+- `eltype::Type{<:Number}`: Element type (e.g., Float64, ComplexF64)
+- `sites::Vector{<:Index}`: Vector of site indices
+- `linkdims::Union{Integer,Vector{<:Integer}}`: Link dimension(s) (default: 1)
+
+# Returns
+- `TensorTrain`: A random tensor train (MPS)
+"""
+function random_mps(rng::Random.AbstractRNG, eltype::Type{<:Number}, sites::Vector{<:Index}; linkdims::Union{Integer,Vector{<:Integer}}=1)
+    mps = ITensorMPS.random_mps(rng, eltype, sites; linkdims)
+    return TensorTrain(mps)
+end
+
+"""
+    random_mps(sites::Vector{<:Index}, state; linkdims=1)
+
+Construct a random TensorTrain (MPS) with initial state (for quantum number conservation).
+
+# Arguments
+- `sites::Vector{<:Index}`: Vector of site indices
+- `state`: Initial state specification (function or vector)
+- `linkdims::Union{Integer,Vector{<:Integer}}`: Link dimension(s) (default: 1)
+
+# Returns
+- `TensorTrain`: A random tensor train (MPS)
+"""
+function random_mps(sites::Vector{<:Index}, state; linkdims::Union{Integer,Vector{<:Integer}}=1)
+    return random_mps(Random.default_rng(), sites, state; linkdims)
+end
+
+"""
+    random_mps(rng::Random.AbstractRNG, sites::Vector{<:Index}, state; linkdims=1)
+
+Construct a random TensorTrain (MPS) with initial state using the specified RNG.
+
+# Arguments
+- `rng::Random.AbstractRNG`: Random number generator
+- `sites::Vector{<:Index}`: Vector of site indices
+- `state`: Initial state specification (function or vector)
+- `linkdims::Union{Integer,Vector{<:Integer}}`: Link dimension(s) (default: 1)
+
+# Returns
+- `TensorTrain`: A random tensor train (MPS)
+"""
+function random_mps(rng::Random.AbstractRNG, sites::Vector{<:Index}, state; linkdims::Union{Integer,Vector{<:Integer}}=1)
+    return random_mps(rng, Float64, sites, state; linkdims)
+end
+
+"""
+    random_mps(eltype::Type{<:Number}, sites::Vector{<:Index}, state; linkdims=1)
+
+Construct a random TensorTrain (MPS) with element type and initial state.
+
+# Arguments
+- `eltype::Type{<:Number}`: Element type (e.g., Float64, ComplexF64)
+- `sites::Vector{<:Index}`: Vector of site indices
+- `state`: Initial state specification (function or vector)
+- `linkdims::Union{Integer,Vector{<:Integer}}`: Link dimension(s) (default: 1)
+
+# Returns
+- `TensorTrain`: A random tensor train (MPS)
+"""
+function random_mps(eltype::Type{<:Number}, sites::Vector{<:Index}, state; linkdims::Union{Integer,Vector{<:Integer}}=1)
+    return random_mps(Random.default_rng(), eltype, sites, state; linkdims)
+end
+
+"""
+    random_mps(rng::Random.AbstractRNG, eltype::Type{<:Number}, sites::Vector{<:Index}, state; linkdims=1)
+
+Construct a random TensorTrain (MPS) with RNG, element type, and initial state.
+
+# Arguments
+- `rng::Random.AbstractRNG`: Random number generator
+- `eltype::Type{<:Number}`: Element type (e.g., Float64, ComplexF64)
+- `sites::Vector{<:Index}`: Vector of site indices
+- `state`: Initial state specification (function or vector)
+- `linkdims::Union{Integer,Vector{<:Integer}}`: Link dimension(s) (default: 1)
+
+# Returns
+- `TensorTrain`: A random tensor train (MPS)
+"""
+function random_mps(rng::Random.AbstractRNG, eltype::Type{<:Number}, sites::Vector{<:Index}, state; linkdims::Union{Integer,Vector{<:Integer}}=1)
+    mps = ITensorMPS.random_mps(rng, eltype, sites, state; linkdims)
+    return TensorTrain(mps)
+end
+
+"""
+    random_mpo(sites::Vector{<:Index}, m::Int=1)
+
+Construct a random TensorTrain (MPO) with specified sites.
+
+# Arguments
+- `sites::Vector{<:Index}`: Vector of site indices
+- `m::Int`: Currently only m=1 is supported (default: 1)
+
+# Returns
+- `TensorTrain`: A random tensor train (MPO)
+
+# Examples
+```julia
+sites = [Index(2, "Qubit,n=\$n") for n = 1:5]
+mpo = random_mpo(sites)
+```
+"""
+function random_mpo(sites::Vector{<:Index}, m::Int=1)
+    return random_mpo(Random.default_rng(), sites, m)
+end
+
+"""
+    random_mpo(rng::Random.AbstractRNG, sites::Vector{<:Index}, m::Int=1)
+
+Construct a random TensorTrain (MPO) with specified RNG and sites.
+
+# Arguments
+- `rng::Random.AbstractRNG`: Random number generator
+- `sites::Vector{<:Index}`: Vector of site indices
+- `m::Int`: Currently only m=1 is supported (default: 1)
+
+# Returns
+- `TensorTrain`: A random tensor train (MPO)
+"""
+function random_mpo(rng::Random.AbstractRNG, sites::Vector{<:Index}, m::Int=1)
+    mpo = ITensorMPS.random_mpo(rng, sites, m)
+    return TensorTrain(mpo)
 end

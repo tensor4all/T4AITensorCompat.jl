@@ -48,7 +48,5 @@ const MPO = TensorTrain
 const AbstractMPS = TensorTrain
 
 include("contraction.jl")
-include("random.jl")  # Random tensor train generation functions
-include("itensormps_compat.jl")  # Compatibility functions for ITensorMPS API
 
 end
