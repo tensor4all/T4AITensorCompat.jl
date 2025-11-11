@@ -768,7 +768,10 @@ function maxlinkdim(stt::TensorTrain)
 end
 
 function _extractsite(x::TensorTrain, n::Int)::Vector{Index}
-    if n == 1
+    if length(x) == 1
+        # Single site: all indices are site indices
+        return collect(inds(x[n]))
+    elseif n == 1
         return copy(uniqueinds(x[n], x[n + 1]))
     elseif n == length(x)
         return copy(uniqueinds(x[n], x[n - 1]))

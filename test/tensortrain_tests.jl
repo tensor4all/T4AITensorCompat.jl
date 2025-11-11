@@ -2,7 +2,7 @@
     include("util.jl")
 
     import T4AITensorCompat: TensorTrain, dist, siteinds, random_mps, random_mpo
-    import ITensors: ITensor, Index, random_itensor
+    import ITensors: ITensor, Index, random_itensor, dim
     import ITensorMPS
     import ITensors: Algorithm, @Algorithm_str
     import LinearAlgebra: norm

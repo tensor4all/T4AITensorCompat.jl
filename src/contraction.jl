@@ -240,5 +240,13 @@ function product(A::TensorTrain, Ψ::TensorTrain; alg=Algorithm"fit"(), cutoff=d
     end
 end
 
-# Backwards-compatible alias
+"""
+    apply(A::TensorTrain, Ψ::TensorTrain; kwargs...)
+
+Backwards-compatible alias for [`product`](@ref).
+
+This function multiplies an MPO `A` by a tensor train `Ψ` (MPS or MPO) and
+forwards all keyword arguments to [`product`](@ref).
+See [`product`](@ref) for the full list of supported keywords and behavior.
+"""
 apply(A::TensorTrain, Ψ::TensorTrain; kwargs...) = product(A, Ψ; kwargs...)

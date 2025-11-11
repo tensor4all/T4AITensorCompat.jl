@@ -18,7 +18,7 @@ limitations under the License.
 
 module T4AITensorCompat
 
-import ITensors: ITensors, ITensor, Index, dim, uniqueinds, commoninds, uniqueind
+import ITensors: ITensors, ITensor, Index, dim, uniqueinds, commoninds, uniqueind, inds
 import ITensorMPS
 import ITensors: Algorithm, @Algorithm_str
 import LinearAlgebra
