@@ -255,49 +255,102 @@ function TensorTrain(A::AbstractArray, sites; kwargs...)
 end
 
 """
-    TensorTrain(tt_data; sites, kwargs...)
+    TensorTrain(tt_data::AbstractVector{<:AbstractArray}; sites)
 
-Construct a TensorTrain from tensor train data (like QuanticsTCI/TensorCrossInterpolation) with specified sites.
+Construct a TensorTrain from a vector of core arrays and site indices.
 
-This constructor is used for converting from other tensor train formats (e.g., QuanticsTCI, TensorCrossInterpolation)
-to TensorTrain by specifying the site indices.
+This constructor supports sites with arbitrary numbers of physical indices per site.
+It validates the number of physical indices at each site, constructs link indices by
+reading the core bond dimensions, and builds a `Vector{ITensor}` directly.
 
 # Arguments
-- `tt_data`: Tensor train data (e.g., from QuanticsTCI or TensorCrossInterpolation)
-- `sites`: Site indices - either `Vector{Index}` (for MPS) or `Vector{Vector{Index}}` (for MPO)
+- `tt_data::AbstractVector{<:AbstractArray}`: Vector of TT core arrays.
+- `sites`: Either `AbstractVector{<:Index}` (MPS case, one physical index per site) or
+  `AbstractVector{<:AbstractVector{<:Index}}` (general case, arbitrary number of physical indices per site).
+  Each element `sites[n]` is either a single `Index` (MPS) or a vector of physical indices for site `n`.
 
-# Keyword Arguments
-- `kwargs...`: Additional keyword arguments passed to ITensorMPS constructors
+# Assumptions
+- Core axis order is `(left_link, physical..., right_link)`.
+- Each core has `length(sites[n]) + 2` dimensions (physical indices + 2 links).
+- Boundary link dimensions are represented in the arrays (typically 1 on edges).
 
 # Returns
 - `TensorTrain`: A new TensorTrain object
 """
-function TensorTrain(tt_data; sites, kwargs...)
+function TensorTrain(tt_data::AbstractVector{<:AbstractArray}; sites)
+    N = length(tt_data)
+    N == 0 && return TensorTrain(Vector{ITensor}())
+    
+    # Normalize sites to AbstractVector{AbstractVector{Index}} format
+    # Check if sites is AbstractVector{<:Index} (MPS case)
     if length(sites) > 0 && sites[1] isa Index
-        # MPS case: sites is Vector{Index}
-        mps = ITensorMPS.MPS(tt_data, sites; kwargs...)
-        return TensorTrain(mps)
-    else
-        # MPO case: sites is Vector{Vector{Index}}
-        # Check if tt_data is TensorCrossInterpolation.TensorTrain
-        # Try to use TensorCrossInterpolation conversion if available
-        tt_type = typeof(tt_data)
-        if hasmethod(ITensorMPS.MPO, (typeof(tt_data),); kwargs...)
-            # Try ITensorMPS.MPO with sites keyword argument (for TensorCrossInterpolation)
-            try
-                mpo = ITensorMPS.MPO(tt_data; sites=sites, kwargs...)
-                return TensorTrain(mpo)
-            catch
-                # Fallback to generic MPO constructor
-                mpo = ITensorMPS.MPO(tt_data, sites; kwargs...)
-                return TensorTrain(mpo)
-            end
-        else
-            # Try generic MPO constructor
-            mpo = ITensorMPS.MPO(tt_data, sites; kwargs...)
-            return TensorTrain(mpo)
+        # Convert to Vector{Vector{Index}} format
+        sites = [[s] for s in sites]
+    elseif length(sites) > 0 && !(sites[1] isa AbstractVector)
+        error("sites must be either AbstractVector{<:Index} or AbstractVector{<:AbstractVector{<:Index}}")
+    end
+
+    length(sites) == N || error("Length mismatch: length(sites)=$(length(sites)) must equal length(tt_data)=$N")
+
+    # Determine expected number of physical indices per site
+    expected_physical_per_site = [length(sites[n]) for n in 1:N]
+
+    # Validate core dimensionalities and extract link dimensions
+    left_link_dims = Vector{Int}(undef, N)
+    right_link_dims = Vector{Int}(undef, N)
+    for n in 1:N
+        core = tt_data[n]
+        nd = ndims(core)
+        expected_nd = expected_physical_per_site[n] + 2
+        nd == expected_nd || error("Core $n has ndims=$nd but expected $expected_nd (physical=$(expected_physical_per_site[n]) + 2 links)")
+        left_link_dims[n] = size(core, 1)
+        right_link_dims[n] = size(core, nd)
+        if n > 1 && left_link_dims[n] != right_link_dims[n - 1]
+            error("Bond mismatch between cores $(n-1) and $n: right=$(right_link_dims[n-1]) vs left=$(left_link_dims[n])")
         end
     end
+
+    # Create link indices from link dimensions for the N-1 bonds
+    links = N > 1 ? [Index(right_link_dims[n], "Link,l=$n") for n in 1:(N - 1)] : Index[]
+
+    # Build ITensors per site
+    tensors = Vector{ITensor}(undef, N)
+    for n in 1:N
+        core = tt_data[n]
+        nphys = expected_physical_per_site[n]
+        site_inds_n = sites[n]
+
+        # Use site indices as given (no special MPO convention)
+        site_inds_tuple = Tuple(site_inds_n)
+
+        # Validate physical dimensions match the array sizes on axes 2:(1+nphys)
+        for p in 1:nphys
+            idx = site_inds_tuple[p]
+            array_dim = size(core, 1 + p)
+            ITensors.dim(idx) == array_dim || error(
+                "Physical dim mismatch at site $n, physical $p: array=$(array_dim) vs index=$(ITensors.dim(idx))",
+            )
+        end
+
+        # Assemble index tuple in the assumed order: (left?, physical..., right?)
+        inds_tuple = if n == 1 && n == N
+            # Single-site
+            site_inds_tuple
+        elseif n == 1
+            # First: physical..., right_link
+            Tuple(vcat(collect(site_inds_tuple), [links[n]]))
+        elseif n == N
+            # Last: left_link, physical...
+            Tuple(vcat([links[n - 1]], collect(site_inds_tuple)))
+        else
+            # Middle: left_link, physical..., right_link
+            Tuple(vcat([links[n - 1]], collect(site_inds_tuple), [links[n]]))
+        end
+
+        tensors[n] = ITensor(core, inds_tuple...)
+    end
+
+    return TensorTrain(tensors)
 end
 
 # Iterator implementation
