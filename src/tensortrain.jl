@@ -39,6 +39,9 @@ mutable struct TensorTrain
     data::Vector{ITensor}
     llim::Int
     rlim::Int
+    
+    # Internal constructor to prevent ambiguous matches
+    TensorTrain(data::Vector{ITensor}, llim::Int, rlim::Int) = new(data, llim, rlim)
 end
 
 """
@@ -62,6 +65,239 @@ end
 # Elements are uninitialized ITensors and should be assigned by the caller.
 function TensorTrain(n::Int)
     return TensorTrain(Vector{ITensor}(undef, n), 0, n + 1)
+end
+
+"""
+    TensorTrain(sites::Vector{<:Index})
+
+Construct a TensorTrain (MPS) from a vector of site indices.
+
+This creates an MPS with empty ITensors initialized with the specified site indices.
+
+# Arguments
+- `sites::Vector{<:Index}`: Vector of site indices
+
+# Returns
+- `TensorTrain`: A new TensorTrain (MPS) object
+"""
+function TensorTrain(sites::Vector{<:Index})
+    # Construct an MPS with default link dimensions
+    mps = ITensorMPS.MPS(Float64, sites)
+    return TensorTrain(mps)
+end
+
+"""
+    TensorTrain(::Type{T}, sites::Vector{<:Index}; linkdims=1) where {T<:Number}
+
+Construct a TensorTrain (MPS) from a vector of site indices with specified element type.
+
+This creates an MPS with empty ITensors of type `T` initialized with the specified site indices.
+
+# Arguments
+- `T::Type{<:Number}`: Element type (e.g., Float64, ComplexF64)
+- `sites::Vector{<:Index}`: Vector of site indices
+- `linkdims::Union{Integer,Vector{<:Integer}}`: Link dimension(s) (default: 1)
+
+# Returns
+- `TensorTrain`: A new TensorTrain (MPS) object
+"""
+function TensorTrain(::Type{T}, sites::Vector{<:Index}; linkdims::Union{Integer,Vector{<:Integer}}=1) where {T<:Number}
+    mps = ITensorMPS.MPS(T, sites; linkdims=linkdims)
+    return TensorTrain(mps)
+end
+
+"""
+    TensorTrain(::Type{T}, sites::Vector{Vector{<:Index}}, linkdims::Union{Integer,Vector{<:Integer}}) where {T<:Number}
+
+Construct a TensorTrain (MPO) from a vector of site index pairs with specified element type and link dimensions.
+
+This creates an MPO by manually constructing ITensor objects for each site. Each site is represented by a pair of indices
+(typically the upper and lower indices of the MPO).
+
+# Arguments
+- `T::Type{<:Number}`: Element type (e.g., Float64, ComplexF64)
+- `sites::Vector{Vector{<:Index}}`: Vector of site index pairs, where each element is a vector of indices for that site
+- `linkdims::Union{Integer,Vector{<:Integer}}`: Link dimension(s) between sites
+
+# Returns
+- `TensorTrain`: A new TensorTrain (MPO) object
+
+# Examples
+```julia
+sites = [[Index(2, "Site,n=\$n"), Index(2, "Site,n=\$n")] for n=1:5]
+mpo = TensorTrain(ComplexF64, sites, 2)
+```
+"""
+function TensorTrain(::Type{T}, sites::AbstractVector{<:AbstractVector{<:Index}}, linkdims::Union{Integer,Vector{<:Integer}}) where {T<:Number}
+    N = length(sites)
+    N == 0 && return TensorTrain(Vector{ITensor}())
+    
+    # Normalize linkdims to a vector
+    if linkdims isa Integer
+        _linkdims = fill(linkdims, N - 1)
+    else
+        _linkdims = linkdims
+    end
+    
+    length(_linkdims) == N - 1 || error("Length mismatch: linkdims ($(length(_linkdims))) must have length $(N - 1)")
+    
+    # Create internal link indices (no boundary links)
+    links = N > 1 ? [Index(_linkdims[n], "Link,l=$n") for n in 1:(N - 1)] : Index[]
+    
+    # Create ITensors for each site
+    tensors = Vector{ITensor}(undef, N)
+    for n in 1:N
+        site_inds = sites[n]
+        if length(site_inds) != 2
+            error("Each site must have exactly 2 indices (upper and lower), but site $n has $(length(site_inds))")
+        end
+        
+        # For MPO: sites[n] = [lower_index, upper_index]
+        # Lower index is unprimed, upper index is primed
+        lower_ind = site_inds[1]  # unprimed
+        upper_ind = ITensors.prime(site_inds[2])  # primed
+        
+        # MPO structure:
+        # - First site: (upper_site, lower_site, right_link)
+        # - Last site:  (left_link, upper_site, lower_site)
+        # - Middle:     (left_link, upper_site, lower_site, right_link)
+        if n == 1 && n == N
+            inds_tuple = (upper_ind, lower_ind)
+        elseif n == 1
+            inds_tuple = (upper_ind, lower_ind, links[n])
+        elseif n == N
+            inds_tuple = (links[n - 1], upper_ind, lower_ind)
+        else
+            inds_tuple = (links[n - 1], upper_ind, lower_ind, links[n])
+        end
+        
+        # Create zero ITensor with appropriate dimensions
+        dims = map(ITensors.dim, inds_tuple)
+        data = zeros(T, dims...)
+        tensors[n] = ITensor(data, inds_tuple...)
+    end
+    
+    return TensorTrain(tensors)
+end
+
+"""
+    TensorTrain(A::ITensor, sites; kwargs...)
+
+Construct a TensorTrain from an ITensor by decomposing it according to site indices.
+
+This function creates an MPS or MPO by decomposing the ITensor `A` site by site
+according to the site indices `sites`. The `sites` can be either `Vector{Index}`
+(for MPS) or `Vector{Vector{Index}}` (for MPO).
+
+# Arguments
+- `A::ITensor`: The ITensor to decompose
+- `sites`: Site indices - either `Vector{Index}` (for MPS) or `Vector{Vector{Index}}` (for MPO)
+
+# Keyword Arguments
+- `leftinds=nothing`: Optional left dangling indices
+- `orthocenter::Integer=length(sites)`: Desired orthogonality center
+- `tags`: Tags for link indices
+- `cutoff`: Truncation error at each link
+- `maxdim`: Maximum link dimension
+- `kwargs...`: Additional keyword arguments passed to the decomposition
+
+# Returns
+- `TensorTrain`: A new TensorTrain object (MPS or MPO depending on `sites`)
+
+# Examples
+```julia
+sites = [Index(2, "Site,n=\$n") for n=1:5]
+A = randomITensor(sites...)
+tt = TensorTrain(A, sites)
+```
+"""
+function TensorTrain(A::ITensor, sites; kwargs...)
+    # Detect if sites is Vector{Index} (MPS) or Vector{Vector{Index}} (MPO)
+    if length(sites) > 0 && sites[1] isa Index
+        # MPS case: sites is Vector{Index}
+        mps = ITensorMPS.MPS(A, sites; kwargs...)
+        return TensorTrain(mps)
+    else
+        # MPO case: sites is Vector{Vector{Index}} or similar
+        mpo = ITensorMPS.MPO(A, sites; kwargs...)
+        return TensorTrain(mpo)
+    end
+end
+
+"""
+    TensorTrain(A::AbstractArray, sites; kwargs...)
+
+Construct a TensorTrain from an AbstractArray by converting it to an ITensor first.
+
+# Arguments
+- `A::AbstractArray`: The array to convert
+- `sites`: Site indices - either `Vector{Index}` (for MPS) or `Vector{Vector{Index}}` (for MPO)
+- `kwargs...`: Keyword arguments passed to the decomposition
+
+# Returns
+- `TensorTrain`: A new TensorTrain object
+"""
+function TensorTrain(A::AbstractArray, sites; kwargs...)
+    # Convert array to ITensor
+    if length(sites) > 0 && sites[1] isa Index
+        # MPS case: sites is Vector{Index}
+        A_itensor = ITensor(A, sites...)
+        mps = ITensorMPS.MPS(A_itensor, sites; kwargs...)
+        return TensorTrain(mps)
+    else
+        # MPO case: sites is Vector{Vector{Index}}
+        # Flatten sites for ITensor construction
+        sites_flat = collect(Iterators.flatten(sites))
+        A_itensor = ITensor(A, sites_flat...)
+        mpo = ITensorMPS.MPO(A_itensor, sites; kwargs...)
+        return TensorTrain(mpo)
+    end
+end
+
+"""
+    TensorTrain(tt_data; sites, kwargs...)
+
+Construct a TensorTrain from tensor train data (like QuanticsTCI/TensorCrossInterpolation) with specified sites.
+
+This constructor is used for converting from other tensor train formats (e.g., QuanticsTCI, TensorCrossInterpolation)
+to TensorTrain by specifying the site indices.
+
+# Arguments
+- `tt_data`: Tensor train data (e.g., from QuanticsTCI or TensorCrossInterpolation)
+- `sites`: Site indices - either `Vector{Index}` (for MPS) or `Vector{Vector{Index}}` (for MPO)
+
+# Keyword Arguments
+- `kwargs...`: Additional keyword arguments passed to ITensorMPS constructors
+
+# Returns
+- `TensorTrain`: A new TensorTrain object
+"""
+function TensorTrain(tt_data; sites, kwargs...)
+    if length(sites) > 0 && sites[1] isa Index
+        # MPS case: sites is Vector{Index}
+        mps = ITensorMPS.MPS(tt_data, sites; kwargs...)
+        return TensorTrain(mps)
+    else
+        # MPO case: sites is Vector{Vector{Index}}
+        # Check if tt_data is TensorCrossInterpolation.TensorTrain
+        # Try to use TensorCrossInterpolation conversion if available
+        tt_type = typeof(tt_data)
+        if hasmethod(ITensorMPS.MPO, (typeof(tt_data),); kwargs...)
+            # Try ITensorMPS.MPO with sites keyword argument (for TensorCrossInterpolation)
+            try
+                mpo = ITensorMPS.MPO(tt_data; sites=sites, kwargs...)
+                return TensorTrain(mpo)
+            catch
+                # Fallback to generic MPO constructor
+                mpo = ITensorMPS.MPO(tt_data, sites; kwargs...)
+                return TensorTrain(mpo)
+            end
+        else
+            # Try generic MPO constructor
+            mpo = ITensorMPS.MPO(tt_data, sites; kwargs...)
+            return TensorTrain(mpo)
+        end
+    end
 end
 
 # Iterator implementation

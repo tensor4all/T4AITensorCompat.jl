@@ -95,16 +95,16 @@ function contract(M1::TensorTrain, M2::TensorTrain; alg=Algorithm"fit"(), cutoff
         return TensorTrain(result)
     else
         # MPO * MPO: use T4AITensorCompat algorithms
-        if alg == Algorithm"densitymatrix"()
-            return TensorTrain(ContractionImpl.contract_densitymatrix(M1_, M2_; cutoff, maxdim, kwargs...))
-        elseif alg == Algorithm"fit"()
-            return TensorTrain(ContractionImpl.contract_fit(M1_, M2_; cutoff, maxdim, nsweeps, kwargs...))
-        elseif alg == Algorithm"zipup"()
-            return TensorTrain(ITensorMPS.contract(M1_, M2_; alg=Algorithm"zipup"(), cutoff, maxdim, kwargs...))
-        elseif alg == Algorithm"naive"()
-            return TensorTrain(ITensorMPS.contract(M1_, M2_; alg=Algorithm"naive"(), cutoff, maxdim, kwargs...))
-        else
-            error("Unknown algorithm: $alg")
+    if alg == Algorithm"densitymatrix"()
+        return TensorTrain(ContractionImpl.contract_densitymatrix(M1_, M2_; cutoff, maxdim, kwargs...))
+    elseif alg == Algorithm"fit"()
+        return TensorTrain(ContractionImpl.contract_fit(M1_, M2_; cutoff, maxdim, nsweeps, kwargs...))
+    elseif alg == Algorithm"zipup"()
+        return TensorTrain(ITensorMPS.contract(M1_, M2_; alg=Algorithm"zipup"(), cutoff, maxdim, kwargs...))
+    elseif alg == Algorithm"naive"()
+        return TensorTrain(ITensorMPS.contract(M1_, M2_; alg=Algorithm"naive"(), cutoff, maxdim, kwargs...))
+    else
+        error("Unknown algorithm: $alg")
         end
     end
 end
