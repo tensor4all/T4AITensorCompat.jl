@@ -25,6 +25,8 @@ TensorTrain(::ITensorMPS.MPO, ::Int, ::Int)
 
 ```@docs
 contract
+product
+apply
 truncate
 truncate!
 maxlinkdim
@@ -35,7 +37,15 @@ findsite
 findsites
 isortho
 orthocenter
+fit
 lognorm
+```
+
+## Random Generators
+
+```@docs
+random_mps
+random_mpo
 ```
 
 ## Default Parameters
