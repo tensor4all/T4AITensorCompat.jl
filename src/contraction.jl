@@ -87,11 +87,27 @@ function contract(M1::TensorTrain, M2::TensorTrain; alg=Algorithm"fit"(), cutoff
     # Handle MPO * MPS case
     if !is_mps1 && is_mps2
         # MPO * MPS: use ITensorMPS.contract
-        result = ITensorMPS.contract(M1_, M2_; alg=alg, cutoff=cutoff, maxdim=maxdim, kwargs...)
+        # Only pass nsweeps for fit algorithm, otherwise remove it from kwargs
+        if alg == Algorithm"fit"()
+            result = ITensorMPS.contract(M1_, M2_; alg=alg, cutoff=cutoff, maxdim=maxdim, nsweeps=nsweeps, kwargs...)
+        else
+            # Remove nsweeps from kwargs for non-fit algorithms
+            kwargs_dict = Dict(kwargs)
+            delete!(kwargs_dict, :nsweeps)
+            result = ITensorMPS.contract(M1_, M2_; alg=alg, cutoff=cutoff, maxdim=maxdim, kwargs_dict...)
+        end
         return TensorTrain(result)
     elseif is_mps1 && !is_mps2
         # MPS * MPO: use ITensorMPS.contract (commutative)
-        result = ITensorMPS.contract(M2_, M1_; alg=alg, cutoff=cutoff, maxdim=maxdim, kwargs...)
+        # Only pass nsweeps for fit algorithm, otherwise remove it from kwargs
+        if alg == Algorithm"fit"()
+            result = ITensorMPS.contract(M2_, M1_; alg=alg, cutoff=cutoff, maxdim=maxdim, nsweeps=nsweeps, kwargs...)
+        else
+            # Remove nsweeps from kwargs for non-fit algorithms
+            kwargs_dict = Dict(kwargs)
+            delete!(kwargs_dict, :nsweeps)
+            result = ITensorMPS.contract(M2_, M1_; alg=alg, cutoff=cutoff, maxdim=maxdim, kwargs_dict...)
+        end
         return TensorTrain(result)
     else
         # MPO * MPO: use T4AITensorCompat algorithms

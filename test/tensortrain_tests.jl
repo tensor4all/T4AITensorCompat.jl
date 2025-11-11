@@ -1,7 +1,7 @@
 @testitem "tensortrain.jl" begin
     include("util.jl")
 
-    import T4AITensorCompat: TensorTrain, dist
+    import T4AITensorCompat: TensorTrain, dist, siteinds, random_mps, random_mpo
     import ITensors: ITensor, Index, random_itensor
     import ITensorMPS
     import ITensors: Algorithm, @Algorithm_str
@@ -682,5 +682,95 @@
         a_plus_a_truncated_copy = T4AITensorCompat.truncate(a_plus_a; maxdim=10)
 
         @test relative_error(a_plus_a, a_plus_a_truncated_copy) < 1e-13
+    end
+
+    @testset "TensorTrain siteinds function - random_mps" begin
+        # Test siteinds with random_mps
+        sites = [Index(2, "Site,n=$n") for n in 1:5]
+        mps = random_mps(sites; linkdims=3)
+        
+        # Test siteinds function
+        sites_extracted = siteinds(mps)
+        
+        # Check that we get the right number of sites
+        @test length(sites_extracted) == 5
+        
+        # Check that each site contains the correct index
+        for (i, site) in enumerate(sites_extracted)
+            @test length(site) == 1
+            @test site[1] == sites[i]
+        end
+    end
+
+    @testset "TensorTrain siteinds function - random_mpo" begin
+        # Test siteinds with random_mpo
+        sites = [Index(2, "Site,n=$n") for n in 1:4]
+        mpo = random_mpo(sites)
+        
+        # Test siteinds function
+        sites_extracted = siteinds(mpo)
+        
+        # Check that we get the right number of sites
+        @test length(sites_extracted) == 4
+        
+        # Check that each site contains two indices (upper and lower for MPO)
+        for site in sites_extracted
+            @test length(site) == 2
+            # Check that indices have the same dimension
+            @test dim(site[1]) == dim(site[2])
+        end
+    end
+
+    @testset "TensorTrain siteinds function - MPO with multiple site indices" begin
+        # Test siteinds with MPO that has multiple site indices per site
+        # This simulates the case used in T4AQuantics
+        sites1 = [Index(2, "x=$n") for n in 1:3]
+        sites2 = [Index(2, "y=$n") for n in 1:3]
+        sites = [[x, y] for (x, y) in zip(sites1, sites2)]
+        
+        # Create MPO manually
+        links = [Index(2, "Link,l=$n") for n in 1:2]
+        t1 = random_itensor(sites[1]..., links[1])
+        t2 = random_itensor(links[1], sites[2]..., links[2])
+        t3 = random_itensor(links[2], sites[3]...)
+        mpo = TensorTrain([t1, t2, t3])
+        
+        # Test siteinds function
+        sites_extracted = siteinds(mpo)
+        
+        # Check that we get the right number of sites
+        @test length(sites_extracted) == 3
+        
+        # Check that each site contains the correct indices
+        for (i, site) in enumerate(sites_extracted)
+            @test length(site) == 2
+            @test Set(site) == Set(sites[i])
+        end
+    end
+
+    @testset "TensorTrain siteinds function - empty TensorTrain" begin
+        # Test siteinds with empty TensorTrain
+        empty_tt = TensorTrain(Vector{ITensor}())
+        
+        # Test siteinds function
+        sites = siteinds(empty_tt)
+        
+        # Check that we get an empty vector
+        @test length(sites) == 0
+    end
+
+    @testset "TensorTrain siteinds function - single site TensorTrain" begin
+        # Test siteinds with single site TensorTrain
+        i1 = Index(2, "i1")
+        t1 = random_itensor(i1)
+        stt = TensorTrain([t1])
+        
+        # Test siteinds function
+        sites = siteinds(stt)
+        
+        # Check that we get one site
+        @test length(sites) == 1
+        @test length(sites[1]) == 1
+        @test sites[1][1] == i1
     end
 end
