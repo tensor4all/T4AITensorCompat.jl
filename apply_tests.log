@@ -1,0 +1,392 @@
+  Activating project at `~/projects/JuliaUmbrella/T4AITensorCompat.jl`
+Precompiling project...
+   1843.9 ms  ✓ T4AITensorCompat
+  1 dependency successfully precompiled in 3 seconds. 125 already precompiled.
+[ Info: Scanning for test items in project `T4AITensorCompat` at paths: test/apply_tests.jl
+[ Info: Finished scanning for test items in 0.68 seconds.
+[ Info: Scheduling 2 tests on pid 8788 with 1 worker processes and 2 threads per worker.
+[ Info: Starting test workers
+  Worker 8935:  [ Info: Starting test worker 1 on pid = 8935, with 2 threads
+[ Info: Starting running test items
+  Worker 8935:  08:47:05 | maxrss  1.6% | mem 99.7% | START (1/2) test item "apply_tests.jl/MPO_times_MPS" at test/apply_tests.jl:1
+  Worker 8935:  08:47:36 | maxrss  3.4% | mem 99.5% | DONE  (1/2) test item "apply_tests.jl/MPO_times_MPS" 31.3 secs (95.8% compile, 0.2% recompile, 2.9% GC), 144.97 M allocs (7.824 GB)
+
+No Captured Logs for test item "apply_tests.jl/MPO_times_MPS" at test/apply_tests.jl:1 on worker 8935
+Error in testset "product(A::MPO, ψ::MPS) matches ITensorMPS.product" on worker 8935:
+Error During Test at /Users/hiroshi/projects/JuliaUmbrella/T4AITensorCompat.jl/test/apply_tests.jl:9
+  Got exception outside of a @test
+  UndefVarError: `Algorithm` not defined in `Main.var"##apply_tests.jl/MPO_times_MPS#232"`
+  Stacktrace:
+    [1] macro expansion
+      @ ~/projects/JuliaUmbrella/T4AITensorCompat.jl/test/apply_tests.jl:21 [inlined]
+    [2] macro expansion
+      @ ~/.julia/juliaup/julia-1.11.7+0.aarch64.apple.darwin14/share/julia/stdlib/v1.11/Test/src/Test.jl:1798 [inlined]
+    [3] top-level scope
+      @ ~/projects/JuliaUmbrella/T4AITensorCompat.jl/test/apply_tests.jl:9
+    [4] eval
+      @ ./boot.jl:430 [inlined]
+    [5] #100
+      @ ~/.julia/packages/ReTestItems/0nAwp/src/ReTestItems.jl:1140 [inlined]
+    [6] with_source_path(f::ReTestItems.var"#100#104"{Expr}, path::String)
+      @ ReTestItems ~/.julia/packages/ReTestItems/0nAwp/src/ReTestItems.jl:963
+    [7] (::ReTestItems.var"#99#103"{TestItem, String, Expr, Expr})()
+      @ ReTestItems ~/.julia/packages/ReTestItems/0nAwp/src/ReTestItems.jl:1140
+    [8] redirect_stdio(f::ReTestItems.var"#99#103"{TestItem, String, Expr, Expr}; stdin::Nothing, stderr::IOContext{IOStream}, stdout::IOContext{IOStream})
+      @ Base ./stream.jl:1448
+    [9] redirect_stdio
+      @ ./stream.jl:1411 [inlined]
+   [10] _redirect_logs(f::ReTestItems.var"#99#103"{TestItem, String, Expr, Expr}, target::IOStream)
+      @ ReTestItems ~/.julia/packages/ReTestItems/0nAwp/src/log_capture.jl:124
+   [11] #33
+      @ ~/.julia/packages/ReTestItems/0nAwp/src/log_capture.jl:107 [inlined]
+   [12] open(::ReTestItems.var"#33#34"{ReTestItems.var"#99#103"{TestItem, String, Expr, Expr}}, ::String, ::Vararg{String}; kwargs::@Kwargs{})
+      @ Base ./io.jl:410
+   [13] open
+      @ ./io.jl:407 [inlined]
+   [14] _redirect_logs
+      @ ~/.julia/packages/ReTestItems/0nAwp/src/log_capture.jl:107 [inlined]
+   [15] macro expansion
+      @ ~/.julia/packages/ReTestItems/0nAwp/src/macros.jl:82 [inlined]
+   [16] runtestitem(ti::TestItem, ctx::ReTestItems.TestContext; test_end_expr::Expr, logs::Symbol, verbose_results::Bool, finish_test::Bool, catch_test_error::Bool, failfast::Bool)
+      @ ReTestItems ~/.julia/packages/ReTestItems/0nAwp/src/ReTestItems.jl:1137
+   [17] top-level scope
+      @ none:1
+Error in testset "product(A::MPO, ψ::MPS) matches ITensorMPS.product" on worker 8935:
+Error During Test at /Users/hiroshi/projects/JuliaUmbrella/T4AITensorCompat.jl/test/apply_tests.jl:9
+  Got exception outside of a @test
+  UndefVarError: `Algorithm` not defined in `Main.var"##apply_tests.jl/MPO_times_MPS#232"`
+  Stacktrace:
+    [1] macro expansion
+      @ ~/projects/JuliaUmbrella/T4AITensorCompat.jl/test/apply_tests.jl:21 [inlined]
+    [2] macro expansion
+      @ ~/.julia/juliaup/julia-1.11.7+0.aarch64.apple.darwin14/share/julia/stdlib/v1.11/Test/src/Test.jl:1798 [inlined]
+    [3] top-level scope
+      @ ~/projects/JuliaUmbrella/T4AITensorCompat.jl/test/apply_tests.jl:9
+    [4] eval
+      @ ./boot.jl:430 [inlined]
+    [5] #100
+      @ ~/.julia/packages/ReTestItems/0nAwp/src/ReTestItems.jl:1140 [inlined]
+    [6] with_source_path(f::ReTestItems.var"#100#104"{Expr}, path::String)
+      @ ReTestItems ~/.julia/packages/ReTestItems/0nAwp/src/ReTestItems.jl:963
+    [7] (::ReTestItems.var"#99#103"{TestItem, String, Expr, Expr})()
+      @ ReTestItems ~/.julia/packages/ReTestItems/0nAwp/src/ReTestItems.jl:1140
+    [8] redirect_stdio(f::ReTestItems.var"#99#103"{TestItem, String, Expr, Expr}; stdin::Nothing, stderr::IOContext{IOStream}, stdout::IOContext{IOStream})
+      @ Base ./stream.jl:1448
+    [9] redirect_stdio
+      @ ./stream.jl:1411 [inlined]
+   [10] _redirect_logs(f::ReTestItems.var"#99#103"{TestItem, String, Expr, Expr}, target::IOStream)
+      @ ReTestItems ~/.julia/packages/ReTestItems/0nAwp/src/log_capture.jl:124
+   [11] #33
+      @ ~/.julia/packages/ReTestItems/0nAwp/src/log_capture.jl:107 [inlined]
+   [12] open(::ReTestItems.var"#33#34"{ReTestItems.var"#99#103"{TestItem, String, Expr, Expr}}, ::String, ::Vararg{String}; kwargs::@Kwargs{})
+      @ Base ./io.jl:410
+   [13] open
+      @ ./io.jl:407 [inlined]
+   [14] _redirect_logs
+      @ ~/.julia/packages/ReTestItems/0nAwp/src/log_capture.jl:107 [inlined]
+   [15] macro expansion
+      @ ~/.julia/packages/ReTestItems/0nAwp/src/macros.jl:82 [inlined]
+   [16] runtestitem(ti::TestItem, ctx::ReTestItems.TestContext; test_end_expr::Expr, logs::Symbol, verbose_results::Bool, finish_test::Bool, catch_test_error::Bool, failfast::Bool)
+      @ ReTestItems ~/.julia/packages/ReTestItems/0nAwp/src/ReTestItems.jl:1137
+   [17] top-level scope
+      @ none:1
+Error in testset "apply alias equals product (MPO*MPS)" on worker 8935:
+Error During Test at /Users/hiroshi/projects/JuliaUmbrella/T4AITensorCompat.jl/test/apply_tests.jl:36
+  Test threw exception
+  Expression: Array(reduce(*, apply(A, ψ)), reverse(sites)) ≈ Array(reduce(*, product(A, ψ)), reverse(sites))
+  DimensionMismatch: cannot convert an 6 dimensional ITensor to an 2-dimensional Array.
+  Stacktrace:
+   [1] Matrix{Float64}(T::ITensors.ITensor, is::Vector{ITensors.Index{Int64}})
+     @ ITensors ~/.julia/packages/ITensors/iPhbw/src/itensor.jl:701
+   [2] (Array{Float64})(T::ITensors.ITensor, is::Vector{ITensors.Index{Int64}})
+     @ ITensors ~/.julia/packages/ITensors/iPhbw/src/itensor.jl:715
+   [3] Array(T::ITensors.ITensor, is::Vector{ITensors.Index{Int64}})
+     @ ITensors ~/.julia/packages/ITensors/iPhbw/src/itensor.jl:723
+   [4] macro expansion
+     @ ~/.julia/juliaup/julia-1.11.7+0.aarch64.apple.darwin14/share/julia/stdlib/v1.11/Test/src/Test.jl:677 [inlined]
+   [5] macro expansion
+     @ ~/projects/JuliaUmbrella/T4AITensorCompat.jl/test/apply_tests.jl:36 [inlined]
+   [6] macro expansion
+     @ ~/.julia/juliaup/julia-1.11.7+0.aarch64.apple.darwin14/share/julia/stdlib/v1.11/Test/src/Test.jl:1798 [inlined]
+   [7] top-level scope
+     @ ~/projects/JuliaUmbrella/T4AITensorCompat.jl/test/apply_tests.jl:32
+Error in testset "apply alias equals product (MPO*MPS)" on worker 8935:
+Error During Test at /Users/hiroshi/projects/JuliaUmbrella/T4AITensorCompat.jl/test/apply_tests.jl:36
+  Test threw exception
+  Expression: Array(reduce(*, apply(A, ψ)), reverse(sites)) ≈ Array(reduce(*, product(A, ψ)), reverse(sites))
+  DimensionMismatch: cannot convert an 9 dimensional ITensor to an 3-dimensional Array.
+  Stacktrace:
+   [1] Array{Float64, 3}(T::ITensors.ITensor, is::Vector{ITensors.Index{Int64}})
+     @ ITensors ~/.julia/packages/ITensors/iPhbw/src/itensor.jl:701
+   [2] (Array{Float64})(T::ITensors.ITensor, is::Vector{ITensors.Index{Int64}})
+     @ ITensors ~/.julia/packages/ITensors/iPhbw/src/itensor.jl:715
+   [3] Array(T::ITensors.ITensor, is::Vector{ITensors.Index{Int64}})
+     @ ITensors ~/.julia/packages/ITensors/iPhbw/src/itensor.jl:723
+   [4] macro expansion
+     @ ~/.julia/juliaup/julia-1.11.7+0.aarch64.apple.darwin14/share/julia/stdlib/v1.11/Test/src/Test.jl:677 [inlined]
+   [5] macro expansion
+     @ ~/projects/JuliaUmbrella/T4AITensorCompat.jl/test/apply_tests.jl:36 [inlined]
+   [6] macro expansion
+     @ ~/.julia/juliaup/julia-1.11.7+0.aarch64.apple.darwin14/share/julia/stdlib/v1.11/Test/src/Test.jl:1798 [inlined]
+   [7] top-level scope
+     @ ~/projects/JuliaUmbrella/T4AITensorCompat.jl/test/apply_tests.jl:32
+
+  Worker 8935:  08:47:36 | maxrss  3.4% | mem 99.5% | START (2/2) test item "apply_tests.jl/MPO_times_MPO" at test/apply_tests.jl:40
+  Worker 8935:  08:47:37 | maxrss  3.4% | mem 99.5% | DONE  (2/2) test item "apply_tests.jl/MPO_times_MPO" 0.2 secs (87.2% compile), 350.03 K allocs (25.501 MB)
+
+No Captured Logs for test item "apply_tests.jl/MPO_times_MPO" at test/apply_tests.jl:40 on worker 8935
+Error in testset "product(A::MPO, B::MPO) matches ITensorMPS.product" on worker 8935:
+Error During Test at /Users/hiroshi/projects/JuliaUmbrella/T4AITensorCompat.jl/test/apply_tests.jl:48
+  Got exception outside of a @test
+  ArgumentError: Collection is empty, must contain exactly 1 element
+  Stacktrace:
+    [1] _only
+      @ ./iterators.jl:1550 [inlined]
+    [2] only
+      @ ./iterators.jl:1545 [inlined]
+    [3] _broadcast_getindex_evalf
+      @ ./broadcast.jl:678 [inlined]
+    [4] _broadcast_getindex
+      @ ./broadcast.jl:651 [inlined]
+    [5] getindex
+      @ ./broadcast.jl:610 [inlined]
+    [6] macro expansion
+      @ ./broadcast.jl:973 [inlined]
+    [7] macro expansion
+      @ ./simdloop.jl:77 [inlined]
+    [8] copyto!
+      @ ./broadcast.jl:972 [inlined]
+    [9] copyto!
+      @ ./broadcast.jl:925 [inlined]
+   [10] copy(bc::Base.Broadcast.Broadcasted{Base.Broadcast.DefaultArrayStyle{1}, Tuple{Base.OneTo{Int64}}, typeof(only), Tuple{Vector{Vector{ITensors.Index{Int64}}}}})
+      @ Base.Broadcast ./broadcast.jl:897
+   [11] materialize
+      @ ./broadcast.jl:872 [inlined]
+   [12] default_contract_init(operator::ITensorMPS.MPO, input_state::ITensorMPS.MPS)
+      @ ITensorMPS ~/.julia/packages/ITensorMPS/BpFRx/src/solvers/contract.jl:15
+   [13] product(alg::NDTensors.BackendSelection.Algorithm{:fit, @NamedTuple{}}, A::ITensorMPS.MPO, ψ::ITensorMPS.MPS; kwargs::@Kwargs{cutoff::Float64})
+      @ ITensorMPS ~/.julia/packages/ITensorMPS/BpFRx/src/mpo.jl:605
+   [14] product(A::ITensorMPS.MPO, ψ::ITensorMPS.MPS; alg::NDTensors.BackendSelection.Algorithm{:fit, @NamedTuple{}}, kwargs::@Kwargs{cutoff::Float64})
+      @ ITensorMPS ~/.julia/packages/ITensorMPS/BpFRx/src/mpo.jl:601
+   [15] product(A::T4AITensorCompat.TensorTrain, Ψ::T4AITensorCompat.TensorTrain; alg::String, cutoff::Float64, kwargs::@Kwargs{})
+      @ T4AITensorCompat ~/projects/JuliaUmbrella/T4AITensorCompat.jl/src/itensormps_compat.jl:197
+   [16] macro expansion
+      @ ~/projects/JuliaUmbrella/T4AITensorCompat.jl/test/apply_tests.jl:55 [inlined]
+   [17] macro expansion
+      @ ~/.julia/juliaup/julia-1.11.7+0.aarch64.apple.darwin14/share/julia/stdlib/v1.11/Test/src/Test.jl:1798 [inlined]
+   [18] top-level scope
+      @ ~/projects/JuliaUmbrella/T4AITensorCompat.jl/test/apply_tests.jl:48
+   [19] eval
+      @ ./boot.jl:430 [inlined]
+   [20] #100
+      @ ~/.julia/packages/ReTestItems/0nAwp/src/ReTestItems.jl:1140 [inlined]
+   [21] with_source_path(f::ReTestItems.var"#100#104"{Expr}, path::String)
+      @ ReTestItems ~/.julia/packages/ReTestItems/0nAwp/src/ReTestItems.jl:963
+   [22] (::ReTestItems.var"#99#103"{TestItem, String, Expr, Expr})()
+      @ ReTestItems ~/.julia/packages/ReTestItems/0nAwp/src/ReTestItems.jl:1140
+   [23] redirect_stdio(f::ReTestItems.var"#99#103"{TestItem, String, Expr, Expr}; stdin::Nothing, stderr::IOContext{IOStream}, stdout::IOContext{IOStream})
+      @ Base ./stream.jl:1448
+   [24] redirect_stdio
+      @ ./stream.jl:1411 [inlined]
+   [25] _redirect_logs(f::ReTestItems.var"#99#103"{TestItem, String, Expr, Expr}, target::IOStream)
+      @ ReTestItems ~/.julia/packages/ReTestItems/0nAwp/src/log_capture.jl:124
+   [26] #33
+      @ ~/.julia/packages/ReTestItems/0nAwp/src/log_capture.jl:107 [inlined]
+   [27] open(::ReTestItems.var"#33#34"{ReTestItems.var"#99#103"{TestItem, String, Expr, Expr}}, ::String, ::Vararg{String}; kwargs::@Kwargs{})
+      @ Base ./io.jl:410
+   [28] open
+      @ ./io.jl:407 [inlined]
+   [29] _redirect_logs
+      @ ~/.julia/packages/ReTestItems/0nAwp/src/log_capture.jl:107 [inlined]
+   [30] macro expansion
+      @ ~/.julia/packages/ReTestItems/0nAwp/src/macros.jl:82 [inlined]
+   [31] runtestitem(ti::TestItem, ctx::ReTestItems.TestContext; test_end_expr::Expr, logs::Symbol, verbose_results::Bool, finish_test::Bool, catch_test_error::Bool, failfast::Bool)
+      @ ReTestItems ~/.julia/packages/ReTestItems/0nAwp/src/ReTestItems.jl:1137
+   [32] top-level scope
+      @ none:1
+Error in testset "product(A::MPO, B::MPO) matches ITensorMPS.product" on worker 8935:
+Error During Test at /Users/hiroshi/projects/JuliaUmbrella/T4AITensorCompat.jl/test/apply_tests.jl:48
+  Got exception outside of a @test
+  ArgumentError: Collection is empty, must contain exactly 1 element
+  Stacktrace:
+    [1] _only
+      @ ./iterators.jl:1550 [inlined]
+    [2] only
+      @ ./iterators.jl:1545 [inlined]
+    [3] _broadcast_getindex_evalf
+      @ ./broadcast.jl:678 [inlined]
+    [4] _broadcast_getindex
+      @ ./broadcast.jl:651 [inlined]
+    [5] getindex
+      @ ./broadcast.jl:610 [inlined]
+    [6] macro expansion
+      @ ./broadcast.jl:973 [inlined]
+    [7] macro expansion
+      @ ./simdloop.jl:77 [inlined]
+    [8] copyto!
+      @ ./broadcast.jl:972 [inlined]
+    [9] copyto!
+      @ ./broadcast.jl:925 [inlined]
+   [10] copy(bc::Base.Broadcast.Broadcasted{Base.Broadcast.DefaultArrayStyle{1}, Tuple{Base.OneTo{Int64}}, typeof(only), Tuple{Vector{Vector{ITensors.Index{Int64}}}}})
+      @ Base.Broadcast ./broadcast.jl:897
+   [11] materialize
+      @ ./broadcast.jl:872 [inlined]
+   [12] default_contract_init(operator::ITensorMPS.MPO, input_state::ITensorMPS.MPS)
+      @ ITensorMPS ~/.julia/packages/ITensorMPS/BpFRx/src/solvers/contract.jl:15
+   [13] product(alg::NDTensors.BackendSelection.Algorithm{:fit, @NamedTuple{}}, A::ITensorMPS.MPO, ψ::ITensorMPS.MPS; kwargs::@Kwargs{cutoff::Float64})
+      @ ITensorMPS ~/.julia/packages/ITensorMPS/BpFRx/src/mpo.jl:605
+   [14] product(A::ITensorMPS.MPO, ψ::ITensorMPS.MPS; alg::NDTensors.BackendSelection.Algorithm{:fit, @NamedTuple{}}, kwargs::@Kwargs{cutoff::Float64})
+      @ ITensorMPS ~/.julia/packages/ITensorMPS/BpFRx/src/mpo.jl:601
+   [15] product(A::T4AITensorCompat.TensorTrain, Ψ::T4AITensorCompat.TensorTrain; alg::String, cutoff::Float64, kwargs::@Kwargs{})
+      @ T4AITensorCompat ~/projects/JuliaUmbrella/T4AITensorCompat.jl/src/itensormps_compat.jl:197
+   [16] macro expansion
+      @ ~/projects/JuliaUmbrella/T4AITensorCompat.jl/test/apply_tests.jl:55 [inlined]
+   [17] macro expansion
+      @ ~/.julia/juliaup/julia-1.11.7+0.aarch64.apple.darwin14/share/julia/stdlib/v1.11/Test/src/Test.jl:1798 [inlined]
+   [18] top-level scope
+      @ ~/projects/JuliaUmbrella/T4AITensorCompat.jl/test/apply_tests.jl:48
+   [19] eval
+      @ ./boot.jl:430 [inlined]
+   [20] #100
+      @ ~/.julia/packages/ReTestItems/0nAwp/src/ReTestItems.jl:1140 [inlined]
+   [21] with_source_path(f::ReTestItems.var"#100#104"{Expr}, path::String)
+      @ ReTestItems ~/.julia/packages/ReTestItems/0nAwp/src/ReTestItems.jl:963
+   [22] (::ReTestItems.var"#99#103"{TestItem, String, Expr, Expr})()
+      @ ReTestItems ~/.julia/packages/ReTestItems/0nAwp/src/ReTestItems.jl:1140
+   [23] redirect_stdio(f::ReTestItems.var"#99#103"{TestItem, String, Expr, Expr}; stdin::Nothing, stderr::IOContext{IOStream}, stdout::IOContext{IOStream})
+      @ Base ./stream.jl:1448
+   [24] redirect_stdio
+      @ ./stream.jl:1411 [inlined]
+   [25] _redirect_logs(f::ReTestItems.var"#99#103"{TestItem, String, Expr, Expr}, target::IOStream)
+      @ ReTestItems ~/.julia/packages/ReTestItems/0nAwp/src/log_capture.jl:124
+   [26] #33
+      @ ~/.julia/packages/ReTestItems/0nAwp/src/log_capture.jl:107 [inlined]
+   [27] open(::ReTestItems.var"#33#34"{ReTestItems.var"#99#103"{TestItem, String, Expr, Expr}}, ::String, ::Vararg{String}; kwargs::@Kwargs{})
+      @ Base ./io.jl:410
+   [28] open
+      @ ./io.jl:407 [inlined]
+   [29] _redirect_logs
+      @ ~/.julia/packages/ReTestItems/0nAwp/src/log_capture.jl:107 [inlined]
+   [30] macro expansion
+      @ ~/.julia/packages/ReTestItems/0nAwp/src/macros.jl:82 [inlined]
+   [31] runtestitem(ti::TestItem, ctx::ReTestItems.TestContext; test_end_expr::Expr, logs::Symbol, verbose_results::Bool, finish_test::Bool, catch_test_error::Bool, failfast::Bool)
+      @ ReTestItems ~/.julia/packages/ReTestItems/0nAwp/src/ReTestItems.jl:1137
+   [32] top-level scope
+      @ none:1
+Error in testset "apply alias equals product (MPO*MPO)" on worker 8935:
+Error During Test at /Users/hiroshi/projects/JuliaUmbrella/T4AITensorCompat.jl/test/apply_tests.jl:81
+  Test threw exception
+  Expression: Array(reduce(*, apply(A, B)), flatten_sites(apply(A, B))) ≈ Array(reduce(*, product(A, B)), flatten_sites(product(A, B)))
+  ArgumentError: Collection is empty, must contain exactly 1 element
+  Stacktrace:
+    [1] _only
+      @ ./iterators.jl:1550 [inlined]
+    [2] only
+      @ ./iterators.jl:1545 [inlined]
+    [3] _broadcast_getindex_evalf
+      @ ./broadcast.jl:678 [inlined]
+    [4] _broadcast_getindex
+      @ ./broadcast.jl:651 [inlined]
+    [5] getindex
+      @ ./broadcast.jl:610 [inlined]
+    [6] macro expansion
+      @ ./broadcast.jl:973 [inlined]
+    [7] macro expansion
+      @ ./simdloop.jl:77 [inlined]
+    [8] copyto!
+      @ ./broadcast.jl:972 [inlined]
+    [9] copyto!
+      @ ./broadcast.jl:925 [inlined]
+   [10] copy(bc::Base.Broadcast.Broadcasted{Base.Broadcast.DefaultArrayStyle{1}, Tuple{Base.OneTo{Int64}}, typeof(only), Tuple{Vector{Vector{ITensors.Index{Int64}}}}})
+      @ Base.Broadcast ./broadcast.jl:897
+   [11] materialize
+      @ ./broadcast.jl:872 [inlined]
+   [12] default_contract_init(operator::ITensorMPS.MPO, input_state::ITensorMPS.MPS)
+      @ ITensorMPS ~/.julia/packages/ITensorMPS/BpFRx/src/solvers/contract.jl:15
+   [13] product(alg::NDTensors.BackendSelection.Algorithm{:fit, @NamedTuple{}}, A::ITensorMPS.MPO, ψ::ITensorMPS.MPS; kwargs::@Kwargs{cutoff::Float64})
+      @ ITensorMPS ~/.julia/packages/ITensorMPS/BpFRx/src/mpo.jl:605
+   [14] product(A::ITensorMPS.MPO, ψ::ITensorMPS.MPS; alg::NDTensors.BackendSelection.Algorithm{:fit, @NamedTuple{}}, kwargs::@Kwargs{cutoff::Float64})
+      @ ITensorMPS ~/.julia/packages/ITensorMPS/BpFRx/src/mpo.jl:601
+   [15] product(A::T4AITensorCompat.TensorTrain, Ψ::T4AITensorCompat.TensorTrain; alg::String, cutoff::Float64, kwargs::@Kwargs{})
+      @ T4AITensorCompat ~/projects/JuliaUmbrella/T4AITensorCompat.jl/src/itensormps_compat.jl:197
+   [16] product
+      @ ~/projects/JuliaUmbrella/T4AITensorCompat.jl/src/itensormps_compat.jl:176 [inlined]
+   [17] apply(A::T4AITensorCompat.TensorTrain, Ψ::T4AITensorCompat.TensorTrain)
+      @ T4AITensorCompat ~/projects/JuliaUmbrella/T4AITensorCompat.jl/src/itensormps_compat.jl:211
+   [18] macro expansion
+      @ ~/.julia/juliaup/julia-1.11.7+0.aarch64.apple.darwin14/share/julia/stdlib/v1.11/Test/src/Test.jl:677 [inlined]
+   [19] macro expansion
+      @ ~/projects/JuliaUmbrella/T4AITensorCompat.jl/test/apply_tests.jl:81 [inlined]
+   [20] macro expansion
+      @ ~/.julia/juliaup/julia-1.11.7+0.aarch64.apple.darwin14/share/julia/stdlib/v1.11/Test/src/Test.jl:1798 [inlined]
+   [21] top-level scope
+      @ ~/projects/JuliaUmbrella/T4AITensorCompat.jl/test/apply_tests.jl:74
+Error in testset "apply alias equals product (MPO*MPO)" on worker 8935:
+Error During Test at /Users/hiroshi/projects/JuliaUmbrella/T4AITensorCompat.jl/test/apply_tests.jl:81
+  Test threw exception
+  Expression: Array(reduce(*, apply(A, B)), flatten_sites(apply(A, B))) ≈ Array(reduce(*, product(A, B)), flatten_sites(product(A, B)))
+  ArgumentError: Collection is empty, must contain exactly 1 element
+  Stacktrace:
+    [1] _only
+      @ ./iterators.jl:1550 [inlined]
+    [2] only
+      @ ./iterators.jl:1545 [inlined]
+    [3] _broadcast_getindex_evalf
+      @ ./broadcast.jl:678 [inlined]
+    [4] _broadcast_getindex
+      @ ./broadcast.jl:651 [inlined]
+    [5] getindex
+      @ ./broadcast.jl:610 [inlined]
+    [6] macro expansion
+      @ ./broadcast.jl:973 [inlined]
+    [7] macro expansion
+      @ ./simdloop.jl:77 [inlined]
+    [8] copyto!
+      @ ./broadcast.jl:972 [inlined]
+    [9] copyto!
+      @ ./broadcast.jl:925 [inlined]
+   [10] copy(bc::Base.Broadcast.Broadcasted{Base.Broadcast.DefaultArrayStyle{1}, Tuple{Base.OneTo{Int64}}, typeof(only), Tuple{Vector{Vector{ITensors.Index{Int64}}}}})
+      @ Base.Broadcast ./broadcast.jl:897
+   [11] materialize
+      @ ./broadcast.jl:872 [inlined]
+   [12] default_contract_init(operator::ITensorMPS.MPO, input_state::ITensorMPS.MPS)
+      @ ITensorMPS ~/.julia/packages/ITensorMPS/BpFRx/src/solvers/contract.jl:15
+   [13] product(alg::NDTensors.BackendSelection.Algorithm{:fit, @NamedTuple{}}, A::ITensorMPS.MPO, ψ::ITensorMPS.MPS; kwargs::@Kwargs{cutoff::Float64})
+      @ ITensorMPS ~/.julia/packages/ITensorMPS/BpFRx/src/mpo.jl:605
+   [14] product(A::ITensorMPS.MPO, ψ::ITensorMPS.MPS; alg::NDTensors.BackendSelection.Algorithm{:fit, @NamedTuple{}}, kwargs::@Kwargs{cutoff::Float64})
+      @ ITensorMPS ~/.julia/packages/ITensorMPS/BpFRx/src/mpo.jl:601
+   [15] product(A::T4AITensorCompat.TensorTrain, Ψ::T4AITensorCompat.TensorTrain; alg::String, cutoff::Float64, kwargs::@Kwargs{})
+      @ T4AITensorCompat ~/projects/JuliaUmbrella/T4AITensorCompat.jl/src/itensormps_compat.jl:197
+   [16] product
+      @ ~/projects/JuliaUmbrella/T4AITensorCompat.jl/src/itensormps_compat.jl:176 [inlined]
+   [17] apply(A::T4AITensorCompat.TensorTrain, Ψ::T4AITensorCompat.TensorTrain)
+      @ T4AITensorCompat ~/projects/JuliaUmbrella/T4AITensorCompat.jl/src/itensormps_compat.jl:211
+   [18] macro expansion
+      @ ~/.julia/juliaup/julia-1.11.7+0.aarch64.apple.darwin14/share/julia/stdlib/v1.11/Test/src/Test.jl:677 [inlined]
+   [19] macro expansion
+      @ ~/projects/JuliaUmbrella/T4AITensorCompat.jl/test/apply_tests.jl:81 [inlined]
+   [20] macro expansion
+      @ ~/.julia/juliaup/julia-1.11.7+0.aarch64.apple.darwin14/share/julia/stdlib/v1.11/Test/src/Test.jl:1798 [inlined]
+   [21] top-level scope
+      @ ~/projects/JuliaUmbrella/T4AITensorCompat.jl/test/apply_tests.jl:74
+
+[ Info: All tests on worker 1 completed. Closing Worker(pid=8935).
+  Worker 8935:  [8935] signal 15: Terminated: 15
+in expression starting at none:1
+
+[ Tests Completed: 2/2 test items were run.
+Test Summary:                                              | Error  Total   Time
+T4AITensorCompat                                           |     8      8  36.4s
+  test                                                     |     8      8       
+    test/apply_tests.jl                                    |     8      8       
+      apply_tests.jl/MPO_times_MPS                         |     4      4  31.3s
+        product(A::MPO, ψ::MPS) matches ITensorMPS.product |     1      1  20.8s
+        product(A::MPO, ψ::MPS) matches ITensorMPS.product |     1      1   6.8s
+        apply alias equals product (MPO*MPS)               |     1      1   0.7s
+        apply alias equals product (MPO*MPS)               |     1      1   1.7s
+      apply_tests.jl/MPO_times_MPO                         |     4      4   0.2s
+        product(A::MPO, B::MPO) matches ITensorMPS.product |     1      1   0.1s
+        product(A::MPO, B::MPO) matches ITensorMPS.product |     1      1   0.0s
+        apply alias equals product (MPO*MPO)               |     1      1   0.0s
+        apply alias equals product (MPO*MPO)               |     1      1   0.0s
+ERROR: Some tests did not pass: 0 passed, 0 failed, 8 errored, 0 broken.

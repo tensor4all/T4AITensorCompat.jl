@@ -68,19 +68,44 @@ result = contract(M1, M2; alg=Algorithm"densitymatrix"(), maxdim=100)
 ```
 """
 function contract(M1::TensorTrain, M2::TensorTrain; alg=Algorithm"fit"(), cutoff::Real=default_cutoff(), maxdim::Int=default_maxdim(), nsweeps::Int=default_nsweeps(), kwargs...)::TensorTrain
-    M1_ = ITensorMPS.MPO(M1)
-    M2_ = ITensorMPS.MPO(M2)
+    # Detect MPS-like vs MPO-like by counting physical indices per site
+    is_mps1 = begin
+        sites_per_tensor = siteinds(M1)
+        length(M1) > 0 && all(length(s) == 1 for s in sites_per_tensor)
+    end
+    is_mps2 = begin
+        sites_per_tensor = siteinds(M2)
+        length(M2) > 0 && all(length(s) == 1 for s in sites_per_tensor)
+    end
+    
+    # Convert to ITensorMPS types based on detected type
+    M1_ = is_mps1 ? ITensorMPS.MPS(M1) : ITensorMPS.MPO(M1)
+    M2_ = is_mps2 ? ITensorMPS.MPS(M2) : ITensorMPS.MPO(M2)
+    
     alg = Algorithm(alg)
-    if alg == Algorithm"densitymatrix"()
-        return TensorTrain(ContractionImpl.contract_densitymatrix(M1_, M2_; cutoff, maxdim, kwargs...))
-    elseif alg == Algorithm"fit"()
-        return TensorTrain(ContractionImpl.contract_fit(M1_, M2_; cutoff, maxdim, nsweeps, kwargs...))
-    elseif alg == Algorithm"zipup"()
-        return TensorTrain(ITensorMPS.contract(M1_, M2_; alg=Algorithm"zipup"(), cutoff, maxdim, kwargs...))
-    elseif alg == Algorithm"naive"()
-        return TensorTrain(ITensorMPS.contract(M1_, M2_; alg=Algorithm"naive"(), cutoff, maxdim, kwargs...))
+    
+    # Handle MPO * MPS case
+    if !is_mps1 && is_mps2
+        # MPO * MPS: use ITensorMPS.contract
+        result = ITensorMPS.contract(M1_, M2_; alg=alg, cutoff=cutoff, maxdim=maxdim, kwargs...)
+        return TensorTrain(result)
+    elseif is_mps1 && !is_mps2
+        # MPS * MPO: use ITensorMPS.contract (commutative)
+        result = ITensorMPS.contract(M2_, M1_; alg=alg, cutoff=cutoff, maxdim=maxdim, kwargs...)
+        return TensorTrain(result)
     else
-        error("Unknown algorithm: $alg")
+        # MPO * MPO: use T4AITensorCompat algorithms
+        if alg == Algorithm"densitymatrix"()
+            return TensorTrain(ContractionImpl.contract_densitymatrix(M1_, M2_; cutoff, maxdim, kwargs...))
+        elseif alg == Algorithm"fit"()
+            return TensorTrain(ContractionImpl.contract_fit(M1_, M2_; cutoff, maxdim, nsweeps, kwargs...))
+        elseif alg == Algorithm"zipup"()
+            return TensorTrain(ITensorMPS.contract(M1_, M2_; alg=Algorithm"zipup"(), cutoff, maxdim, kwargs...))
+        elseif alg == Algorithm"naive"()
+            return TensorTrain(ITensorMPS.contract(M1_, M2_; alg=Algorithm"naive"(), cutoff, maxdim, kwargs...))
+        else
+            error("Unknown algorithm: $alg")
+        end
     end
 end
 

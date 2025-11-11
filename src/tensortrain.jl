@@ -58,6 +58,12 @@ function TensorTrain(data::Vector{ITensor})
     return TensorTrain(data, 0, length(data) + 1)
 end
 
+# Size-based constructor to allocate an empty tensor train of length `n`.
+# Elements are uninitialized ITensors and should be assigned by the caller.
+function TensorTrain(n::Int)
+    return TensorTrain(Vector{ITensor}(undef, n), 0, n + 1)
+end
+
 # Iterator implementation
 Base.iterate(stt::TensorTrain) = iterate(stt.data)
 Base.iterate(stt::TensorTrain, state) = iterate(stt.data, state)
@@ -447,6 +453,17 @@ function Base.:+(alg::Algorithm, stt1::TensorTrain, stts...)
     return TensorTrain(mps_sum, stt1.llim, stt1.rlim)
 end
 
+"""
+Add TensorTrain objects with algorithm keyword argument.
+
+This function accepts an `alg` keyword argument for interface compatibility,
+but always uses Algorithm("directsum") for optimal numerical precision.
+"""
+function Base.:+(stt1::TensorTrain, stts...; alg::Union{String,Algorithm}="directsum", kwargs...)
+    alg_obj = alg isa String ? Algorithm(alg) : alg
+    return +(alg_obj, stt1, stts...)
+end
+
 
 """
     truncate!(stt::TensorTrain; cutoff::Real=default_cutoff(), maxdim::Int=default_maxdim(), kwargs...)
@@ -545,3 +562,75 @@ the site (physical) indices for the corresponding tensor in the train.
 - `Vector{Vector{Index}}`: Vector of site index vectors, one per tensor
 """
 siteinds(x::TensorTrain) = [_extractsite(x, n) for n in eachindex(x)]
+
+"""
+    prime(tt::TensorTrain, args...; kwargs...)
+
+Apply `ITensors.prime` to all ITensors in a TensorTrain.
+
+This function applies the `prime` function to each tensor in the tensor train,
+returning a new TensorTrain with primed indices.
+
+# Arguments
+- `tt::TensorTrain`: The tensor train to prime
+- `args...`: Arguments passed to `ITensors.prime`
+- `kwargs...`: Keyword arguments passed to `ITensors.prime`
+
+# Returns
+- `TensorTrain`: A new TensorTrain with primed indices
+
+# Examples
+```julia
+tt_primed = prime(tt, 1)  # Prime all indices by 1
+tt_primed = prime(tt, 1; inds=sites)  # Prime only specific indices
+```
+"""
+function ITensors.prime(tt::TensorTrain, args...; kwargs...)
+    return TensorTrain([ITensors.prime(t, args...; kwargs...) for t in tt.data], tt.llim, tt.rlim)
+end
+
+"""
+    noprime(tt::TensorTrain, args...; kwargs...)
+
+Apply `ITensors.noprime` to all ITensors in a TensorTrain.
+
+This function applies the `noprime` function to each tensor in the tensor train,
+returning a new TensorTrain with unprimed indices.
+
+# Arguments
+- `tt::TensorTrain`: The tensor train to unprime
+- `args...`: Arguments passed to `ITensors.noprime`
+- `kwargs...`: Keyword arguments passed to `ITensors.noprime`
+
+# Returns
+- `TensorTrain`: A new TensorTrain with unprimed indices
+"""
+function ITensors.noprime(tt::TensorTrain, args...; kwargs...)
+    return TensorTrain([ITensors.noprime(t, args...; kwargs...) for t in tt.data], tt.llim, tt.rlim)
+end
+
+"""
+    replaceprime(tt::TensorTrain, p1 => p2; kwargs...)
+
+Apply `ITensors.replaceprime` to all ITensors in a TensorTrain.
+
+This function applies the `replaceprime` function to each tensor in the tensor train,
+replacing prime level `p1` with `p2` for all matching indices.
+
+# Arguments
+- `tt::TensorTrain`: The tensor train to modify
+- `p1 => p2`: Pair specifying the prime level replacement (e.g., `1 => 0` or `2 => 1`)
+- `kwargs...`: Keyword arguments passed to `ITensors.replaceprime`
+
+# Returns
+- `TensorTrain`: A new TensorTrain with replaced prime levels
+
+# Examples
+```julia
+tt_replaced = replaceprime(tt, 1 => 0)  # Replace prime level 1 with 0
+tt_replaced = replaceprime(tt, 2 => 1; inds=sites)  # Replace only specific indices
+```
+"""
+function ITensors.replaceprime(tt::TensorTrain, p1_p2::Pair; kwargs...)
+    return TensorTrain([ITensors.replaceprime(t, p1_p2; kwargs...) for t in tt.data], tt.llim, tt.rlim)
+end

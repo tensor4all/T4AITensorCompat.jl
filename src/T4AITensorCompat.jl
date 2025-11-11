@@ -34,6 +34,8 @@ export linkinds, linkind, findsite, findsites, isortho, orthocenter  # Functions
 export default_maxdim, default_cutoff, default_nsweeps
 export lognorm  # Log norm function
 export random_mps, random_mpo  # Random tensor train generation
+export product  # Official API name (match ITensorMPS)
+export apply    # Backwards-compatible alias
 
 
 include("defaults.jl")

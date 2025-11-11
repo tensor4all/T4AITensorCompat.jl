@@ -165,3 +165,68 @@ end
 # Note: MPS and MPO are type aliases for TensorTrain, so MPS([...]) and MPO([...])
 # will automatically call TensorTrain([...]) constructor. No explicit constructors needed.
 
+"""
+    product(A::TensorTrain, Ψ::TensorTrain; alg="fit", cutoff=default_cutoff(), maxdim=default_maxdim(), nsweeps=default_nsweeps(), kwargs...)
+
+Multiply an MPO with an MPS or MPO (official API name).
+
+This function multiplies an MPO `A` by a tensor train `Ψ` (MPS or MPO),
+using `contract` internally and adjusting prime levels for compatibility.
+
+# Arguments
+- `A::TensorTrain`: The MPO to apply
+- `Ψ::TensorTrain`: The MPS or MPO to multiply
+
+# Keywords
+- `alg`: Algorithm specification (String or Algorithm type). Defaults to "fit".
+- `cutoff::Real`: Truncation cutoff. Defaults to `default_cutoff()`.
+- `maxdim::Int`: Maximum bond dimension. Defaults to `default_maxdim()`.
+- `nsweeps::Int`: Number of sweeps for variational algorithms. Defaults to `default_nsweeps()`.
+- `kwargs...`: Additional keyword arguments passed to contract
+"""
+function product(A::TensorTrain, Ψ::TensorTrain; alg=Algorithm"fit"(), cutoff=default_cutoff(), maxdim=default_maxdim(), nsweeps=default_nsweeps(), kwargs...)
+    if :algorithm ∈ keys(kwargs)
+        error("keyword argument :algorithm is not allowed")
+    end
+    
+    # Convert alg to Algorithm type (accepts both String and Algorithm)
+    alg_ = alg isa Algorithm ? alg : Algorithm(alg)
+    
+    # Warn if cutoff is too small for densitymatrix algorithm
+    if alg_ == Algorithm("densitymatrix") && cutoff <= 1e-10
+        @warn "cutoff is too small for densitymatrix algorithm. Use fit algorithm instead."
+    end
+    
+    # Detect MPS-like vs MPO-like by counting physical indices per site:
+    # MPS tensors have 1 physical index per site, MPO tensors have 2 per site.
+    # This is robust to boundary tensors having fewer link indices.
+    is_mps_like = begin
+        sites_per_tensor = siteinds(Ψ)
+        length(Ψ) > 0 && all(length(s) == 1 for s in sites_per_tensor)
+    end
+    
+    if is_mps_like
+        # Apply MPO to MPS: contract(A, ψ) then replaceprime(..., 1 => 0)
+        # Use T4AITensorCompat.contract for MPO * MPS
+        result_tt = contract(A, Ψ; alg=alg_, cutoff=cutoff, maxdim=maxdim, nsweeps=nsweeps, kwargs...)
+        # Adjust prime levels: replaceprime(..., 1 => 0) to get unprimed result
+        # Use ITensorMPS.replaceprime by converting to MPS
+        result_mps = ITensorMPS.MPS(result_tt)
+        result_mps = ITensorMPS.replaceprime(result_mps, 1 => 0)
+        return TensorTrain(result_mps)
+    else
+        # Apply MPO to MPO: contract(A', B) then replaceprime(..., 2 => 1)
+        # Use T4AITensorCompat.contract for MPO * MPO (with A' to contract over one set of indices)
+        A_primed = ITensors.prime(A)
+        result_tt = contract(A_primed, Ψ; alg=alg_, cutoff=cutoff, maxdim=maxdim, nsweeps=nsweeps, kwargs...)
+        # Adjust prime levels: replaceprime(..., 2 => 1) to get pairs of primed/unprimed indices
+        # Use ITensorMPS.replaceprime by converting to MPO
+        result_mpo = ITensorMPS.MPO(result_tt)
+        result_mpo = ITensorMPS.replaceprime(result_mpo, 2 => 1)
+        return TensorTrain(result_mpo)
+    end
+end
+
+# Backwards-compatible alias
+apply(A::TensorTrain, Ψ::TensorTrain; kwargs...) = product(A, Ψ; kwargs...)
+
