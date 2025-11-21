@@ -1,7 +1,7 @@
 name = "T4AITensorCompat"
 uuid = "864b39ca-388c-4f43-a593-a1076cf4b253"
 authors = ["Hiroshi Shinaoka <h.shinaoka@gmail.com>"]
-version = "0.7.0"
+version = "0.8.0"
 license = "Apache-2.0"
 
 [deps]
