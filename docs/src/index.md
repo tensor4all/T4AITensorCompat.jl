@@ -37,6 +37,7 @@ findsite
 findsites
 isortho
 orthocenter
+evaluate
 fit
 lognorm
 ```
@@ -54,4 +55,5 @@ random_mpo
 default_maxdim
 default_cutoff
 default_nsweeps
+default_abs_cutoff
 ```
