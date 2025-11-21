@@ -35,7 +35,7 @@ This struct supports conversion to/from ITensorMPS types:
 - `TensorTrain(mps::MPS)` - Convert from Matrix Product State
 - `TensorTrain(mpo::MPO)` - Convert from Matrix Product Operator
 """
-mutable struct TensorTrain
+mutable struct TensorTrain <: AbstractTTN
     data::Vector{ITensor}
     llim::Int
     rlim::Int
@@ -72,7 +72,7 @@ end
 
 Construct a TensorTrain (MPS) from a vector of site indices.
 
-This creates an MPS with empty ITensors initialized with the specified site indices.
+This creates an MPS by constructing core arrays with default link dimensions (1) initialized with the specified site indices.
 
 # Arguments
 - `sites::Vector{<:Index}`: Vector of site indices
@@ -81,9 +81,8 @@ This creates an MPS with empty ITensors initialized with the specified site indi
 - `TensorTrain`: A new TensorTrain (MPS) object
 """
 function TensorTrain(sites::Vector{<:Index})
-    # Construct an MPS with default link dimensions
-    mps = ITensorMPS.MPS(Float64, sites)
-    return TensorTrain(mps)
+    # Construct an MPS with default link dimensions using the general constructor
+    return TensorTrain(Float64, sites; linkdims=1)
 end
 
 """
@@ -91,7 +90,7 @@ end
 
 Construct a TensorTrain (MPS) from a vector of site indices with specified element type.
 
-This creates an MPS with empty ITensors of type `T` initialized with the specified site indices.
+This creates an MPS by constructing core arrays of type `T` with the specified site indices and link dimensions.
 
 # Arguments
 - `T::Type{<:Number}`: Element type (e.g., Float64, ComplexF64)
@@ -102,21 +101,53 @@ This creates an MPS with empty ITensors of type `T` initialized with the specifi
 - `TensorTrain`: A new TensorTrain (MPS) object
 """
 function TensorTrain(::Type{T}, sites::Vector{<:Index}; linkdims::Union{Integer,Vector{<:Integer}}=1) where {T<:Number}
-    mps = ITensorMPS.MPS(T, sites; linkdims=linkdims)
-    return TensorTrain(mps)
+    N = length(sites)
+    N == 0 && return TensorTrain(Vector{ITensor}())
+    
+    # Normalize linkdims to a vector
+    if linkdims isa Integer
+        _linkdims = fill(linkdims, N - 1)
+    else
+        _linkdims = linkdims
+    end
+    
+    length(_linkdims) == N - 1 || error("Length mismatch: linkdims ($(length(_linkdims))) must have length $(N - 1)")
+    
+    # Create cores with appropriate dimensions
+    # MPS structure: (left_link, physical, right_link)
+    cores = Vector{Array{T}}(undef, N)
+    for n in 1:N
+        physical_dim = ITensors.dim(sites[n])
+        if n == 1 && n == N
+            # Single site: (physical,)
+            cores[n] = zeros(T, physical_dim)
+        elseif n == 1
+            # First site: (1, physical, right_link)
+            cores[n] = zeros(T, 1, physical_dim, _linkdims[n])
+        elseif n == N
+            # Last site: (left_link, physical, 1)
+            cores[n] = zeros(T, _linkdims[n - 1], physical_dim, 1)
+        else
+            # Middle site: (left_link, physical, right_link)
+            cores[n] = zeros(T, _linkdims[n - 1], physical_dim, _linkdims[n])
+        end
+    end
+    
+    # Use the general constructor
+    return TensorTrain(cores; sites=sites)
 end
 
 """
-    TensorTrain(::Type{T}, sites::Vector{Vector{<:Index}}, linkdims::Union{Integer,Vector{<:Integer}}) where {T<:Number}
+    TensorTrain(::Type{T}, sites::AbstractVector{<:AbstractVector{<:Index}}, linkdims::Union{Integer,Vector{<:Integer}}) where {T<:Number}
 
 Construct a TensorTrain (MPO) from a vector of site index pairs with specified element type and link dimensions.
 
-This creates an MPO by manually constructing ITensor objects for each site. Each site is represented by a pair of indices
+This creates an MPO by constructing core arrays of type `T` for each site. Each site is represented by a vector of indices
 (typically the upper and lower indices of the MPO).
 
 # Arguments
 - `T::Type{<:Number}`: Element type (e.g., Float64, ComplexF64)
-- `sites::Vector{Vector{<:Index}}`: Vector of site index pairs, where each element is a vector of indices for that site
+- `sites::AbstractVector{<:AbstractVector{<:Index}}`: Vector of site index vectors, where each element is a vector of indices for that site
 - `linkdims::Union{Integer,Vector{<:Integer}}`: Link dimension(s) between sites
 
 # Returns
@@ -141,57 +172,48 @@ function TensorTrain(::Type{T}, sites::AbstractVector{<:AbstractVector{<:Index}}
     
     length(_linkdims) == N - 1 || error("Length mismatch: linkdims ($(length(_linkdims))) must have length $(N - 1)")
     
-    # Create internal link indices (no boundary links)
-    links = N > 1 ? [Index(_linkdims[n], "Link,l=$n") for n in 1:(N - 1)] : Index[]
-    
-    # Create ITensors for each site
-    tensors = Vector{ITensor}(undef, N)
+    # Create cores with appropriate dimensions
+    # MPO structure: (left_link, upper_physical, lower_physical, right_link)
+    cores = Vector{Array{T}}(undef, N)
     for n in 1:N
         site_inds = sites[n]
         if length(site_inds) != 2
             error("Each site must have exactly 2 indices (upper and lower), but site $n has $(length(site_inds))")
         end
         
-        # For MPO: sites[n] = [lower_index, upper_index]
-        # Lower index is unprimed, upper index is primed
-        lower_ind = site_inds[1]  # unprimed
-        upper_ind = ITensors.prime(site_inds[2])  # primed
+        upper_dim = ITensors.dim(site_inds[2])
+        lower_dim = ITensors.dim(site_inds[1])
         
-        # MPO structure:
-        # - First site: (upper_site, lower_site, right_link)
-        # - Last site:  (left_link, upper_site, lower_site)
-        # - Middle:     (left_link, upper_site, lower_site, right_link)
         if n == 1 && n == N
-            inds_tuple = (upper_ind, lower_ind)
+            # Single site: (upper_physical, lower_physical)
+            cores[n] = zeros(T, upper_dim, lower_dim)
         elseif n == 1
-            inds_tuple = (upper_ind, lower_ind, links[n])
+            # First site: (1, upper_physical, lower_physical, right_link)
+            cores[n] = zeros(T, 1, upper_dim, lower_dim, _linkdims[n])
         elseif n == N
-            inds_tuple = (links[n - 1], upper_ind, lower_ind)
+            # Last site: (left_link, upper_physical, lower_physical, 1)
+            cores[n] = zeros(T, _linkdims[n - 1], upper_dim, lower_dim, 1)
         else
-            inds_tuple = (links[n - 1], upper_ind, lower_ind, links[n])
+            # Middle site: (left_link, upper_physical, lower_physical, right_link)
+            cores[n] = zeros(T, _linkdims[n - 1], upper_dim, lower_dim, _linkdims[n])
         end
-        
-        # Create zero ITensor with appropriate dimensions
-        dims = map(ITensors.dim, inds_tuple)
-        data = zeros(T, dims...)
-        tensors[n] = ITensor(data, inds_tuple...)
     end
     
-    return TensorTrain(tensors)
+    # Use the general constructor
+    return TensorTrain(cores; sites=sites)
 end
 
 """
-    TensorTrain(A::ITensor, sites; kwargs...)
+    TensorTrain(A::ITensor, sites::AbstractVector{<:Index}; kwargs...)
 
 Construct a TensorTrain from an ITensor by decomposing it according to site indices.
 
-This function creates an MPS or MPO by decomposing the ITensor `A` site by site
-according to the site indices `sites`. The `sites` can be either `Vector{Index}`
-(for MPS) or `Vector{Vector{Index}}` (for MPO).
+This function creates a TensorTrain by decomposing the ITensor `A` site by site according to the site indices `sites`.
+If `sites` is `Vector{Index}`, it is automatically converted to `Vector{Vector{Index}}` format.
 
 # Arguments
 - `A::ITensor`: The ITensor to decompose
-- `sites`: Site indices - either `Vector{Index}` (for MPS) or `Vector{Vector{Index}}` (for MPO)
+- `sites::AbstractVector{<:Index}`: Vector of site indices (will be converted to `Vector{Vector{Index}}` format)
 
 # Keyword Arguments
 - `leftinds=nothing`: Optional left dangling indices
@@ -202,7 +224,7 @@ according to the site indices `sites`. The `sites` can be either `Vector{Index}`
 - `kwargs...`: Additional keyword arguments passed to the decomposition
 
 # Returns
-- `TensorTrain`: A new TensorTrain object (MPS or MPO depending on `sites`)
+- `TensorTrain`: A new TensorTrain object
 
 # Examples
 ```julia
@@ -211,47 +233,85 @@ A = randomITensor(sites...)
 tt = TensorTrain(A, sites)
 ```
 """
-function TensorTrain(A::ITensor, sites; kwargs...)
-    # Detect if sites is Vector{Index} (MPS) or Vector{Vector{Index}} (MPO)
-    if length(sites) > 0 && sites[1] isa Index
-        # MPS case: sites is Vector{Index}
-        mps = ITensorMPS.MPS(A, sites; kwargs...)
-        return TensorTrain(mps)
-    else
-        # MPO case: sites is Vector{Vector{Index}} or similar
-        mpo = ITensorMPS.MPO(A, sites; kwargs...)
-        return TensorTrain(mpo)
-    end
+function TensorTrain(A::ITensor, sites::AbstractVector{<:Index}; kwargs...)
+    # Convert Vector{Index} to Vector{Vector{Index}} and delegate
+    sites_normalized = [[s] for s in sites]
+    return TensorTrain(A, sites_normalized; kwargs...)
 end
 
 """
-    TensorTrain(A::AbstractArray, sites; kwargs...)
+    TensorTrain(A::ITensor, sites::AbstractVector{<:AbstractVector{<:Index}}; kwargs...)
+
+Construct a TensorTrain from an ITensor by decomposing it according to site indices.
+
+This function creates a TensorTrain by decomposing the ITensor `A` site by site according to the site indices `sites`.
+
+# Arguments
+- `A::ITensor`: The ITensor to decompose
+- `sites::AbstractVector{<:AbstractVector{<:Index}}`: Vector of site index vectors, where each element is a vector of indices for that site
+
+# Keyword Arguments
+- `leftinds=nothing`: Optional left dangling indices
+- `orthocenter::Integer=length(sites)`: Desired orthogonality center
+- `tags`: Tags for link indices
+- `cutoff`: Truncation error at each link
+- `maxdim`: Maximum link dimension
+- `kwargs...`: Additional keyword arguments passed to the decomposition
+
+# Returns
+- `TensorTrain`: A new TensorTrain object
+"""
+function TensorTrain(A::ITensor, sites::AbstractVector{<:AbstractVector{<:Index}}; kwargs...)
+    # Always use MPO decomposition
+    mpo = ITensorMPS.MPO(A, sites; kwargs...)
+    return TensorTrain(mpo)
+end
+
+"""
+    TensorTrain(A::AbstractArray, sites::AbstractVector{<:Index}; kwargs...)
 
 Construct a TensorTrain from an AbstractArray by converting it to an ITensor first.
 
+This function creates a TensorTrain by converting the array `A` to an ITensor and then decomposing it.
+If `sites` is `Vector{Index}`, it is automatically converted to `Vector{Vector{Index}}` format.
+
 # Arguments
 - `A::AbstractArray`: The array to convert
-- `sites`: Site indices - either `Vector{Index}` (for MPS) or `Vector{Vector{Index}}` (for MPO)
+- `sites::AbstractVector{<:Index}`: Vector of site indices (will be converted to `Vector{Vector{Index}}` format)
 - `kwargs...`: Keyword arguments passed to the decomposition
 
 # Returns
 - `TensorTrain`: A new TensorTrain object
 """
-function TensorTrain(A::AbstractArray, sites; kwargs...)
-    # Convert array to ITensor
-    if length(sites) > 0 && sites[1] isa Index
-        # MPS case: sites is Vector{Index}
-        A_itensor = ITensor(A, sites...)
-        mps = ITensorMPS.MPS(A_itensor, sites; kwargs...)
-        return TensorTrain(mps)
-    else
-        # MPO case: sites is Vector{Vector{Index}}
-        # Flatten sites for ITensor construction
-        sites_flat = collect(Iterators.flatten(sites))
-        A_itensor = ITensor(A, sites_flat...)
-        mpo = ITensorMPS.MPO(A_itensor, sites; kwargs...)
-        return TensorTrain(mpo)
-    end
+function TensorTrain(A::AbstractArray, sites::AbstractVector{<:Index}; kwargs...)
+    # Convert Vector{Index} to Vector{Vector{Index}} and delegate
+    sites_normalized = [[s] for s in sites]
+    return TensorTrain(A, sites_normalized; kwargs...)
+end
+
+"""
+    TensorTrain(A::AbstractArray, sites::AbstractVector{<:AbstractVector{<:Index}}; kwargs...)
+
+Construct a TensorTrain from an AbstractArray by converting it to an ITensor first.
+
+This function creates a TensorTrain by converting the array `A` to an ITensor and then decomposing it.
+
+# Arguments
+- `A::AbstractArray`: The array to convert
+- `sites::AbstractVector{<:AbstractVector{<:Index}}`: Vector of site index vectors, where each element is a vector of indices for that site
+- `kwargs...`: Keyword arguments passed to the decomposition
+
+# Returns
+- `TensorTrain`: A new TensorTrain object
+"""
+function TensorTrain(A::AbstractArray, sites::AbstractVector{<:AbstractVector{<:Index}}; kwargs...)
+    # Flatten sites for ITensor construction
+    sites_flat = collect(Iterators.flatten(sites))
+    A_itensor = ITensor(A, sites_flat...)
+    
+    # Always use MPO decomposition
+    mpo = ITensorMPS.MPO(A_itensor, sites; kwargs...)
+    return TensorTrain(mpo)
 end
 
 """
@@ -749,7 +809,7 @@ end
 
 
 """
-    truncate!(stt::TensorTrain; cutoff::Real=default_cutoff(), maxdim::Int=default_maxdim(), kwargs...)
+    truncate!(stt::TensorTrain; cutoff::Real=default_cutoff(), maxdim::Int=default_maxdim(), abs_cutoff::Real=default_abs_cutoff(), kwargs...)
 
 Truncate a TensorTrain in-place by removing small singular values.
 
@@ -760,16 +820,29 @@ applying ITensorMPS.truncate!, and updating the tensor data.
 - `stt::TensorTrain`: The tensor train to truncate (modified in-place)
 
 # Keyword Arguments
-- `cutoff::Real`: Cutoff threshold for singular values (default: `default_cutoff()`)
+- `cutoff::Real`: Relative cutoff threshold for singular values (default: `default_cutoff()`)
 - `maxdim::Int`: Maximum bond dimension (default: `default_maxdim()`)
+- `abs_cutoff::Real`: Absolute cutoff threshold (default: `default_abs_cutoff()`). 
+  When `abs_cutoff > 0.0`, the effective cutoff becomes `cutoff + abs_cutoff/norm2`,
+  where `norm2` is the squared norm of the tensor train. This ensures the total error
+  is bounded by `cutoff * norm2 + abs_cutoff`.
 - `kwargs...`: Additional keyword arguments passed to ITensorMPS.truncate!
 
 # Returns
 - `TensorTrain`: The modified tensor train (same object as input)
 """
-function truncate!(stt::TensorTrain; cutoff::Real=default_cutoff(), maxdim::Int=default_maxdim(), kwargs...)::TensorTrain
+function truncate!(stt::TensorTrain; cutoff::Real=default_cutoff(), maxdim::Int=default_maxdim(), abs_cutoff::Real=default_abs_cutoff(), kwargs...)::TensorTrain
     mps = ITensorMPS.MPS(stt)
-    ITensorMPS.truncate!(mps; cutoff=cutoff, maxdim=maxdim, kwargs...)
+    
+    # Calculate adjusted cutoff if abs_cutoff is specified
+    adjusted_cutoff = if abs_cutoff != 0.0
+        norm2 = LinearAlgebra.norm(stt)^2
+        cutoff + abs_cutoff / norm2
+    else
+        cutoff
+    end
+    
+    ITensorMPS.truncate!(mps; cutoff=adjusted_cutoff, maxdim=maxdim, kwargs...)
     # Update in place
     for i in 1:length(stt)
         stt[i] = mps[i]
@@ -778,7 +851,7 @@ function truncate!(stt::TensorTrain; cutoff::Real=default_cutoff(), maxdim::Int=
 end
 
 """
-    truncate(stt::TensorTrain; cutoff::Real=default_cutoff(), maxdim::Int=default_maxdim(), kwargs...)
+    truncate(stt::TensorTrain; cutoff::Real=default_cutoff(), maxdim::Int=default_maxdim(), abs_cutoff::Real=default_abs_cutoff(), kwargs...)
 
 Truncate a TensorTrain by removing small singular values, returning a new object.
 
@@ -789,16 +862,29 @@ applying ITensorMPS.truncate!, and creating a new TensorTrain from the result.
 - `stt::TensorTrain`: The tensor train to truncate
 
 # Keyword Arguments
-- `cutoff::Real`: Cutoff threshold for singular values (default: `default_cutoff()`)
+- `cutoff::Real`: Relative cutoff threshold for singular values (default: `default_cutoff()`)
 - `maxdim::Int`: Maximum bond dimension (default: `default_maxdim()`)
+- `abs_cutoff::Real`: Absolute cutoff threshold (default: `default_abs_cutoff()`). 
+  When `abs_cutoff > 0.0`, the effective cutoff becomes `cutoff + abs_cutoff/norm2`,
+  where `norm2` is the squared norm of the tensor train. This ensures the total error
+  is bounded by `cutoff * norm2 + abs_cutoff`.
 - `kwargs...`: Additional keyword arguments passed to ITensorMPS.truncate!
 
 # Returns
 - `TensorTrain`: A new truncated tensor train
 """
-function truncate(stt::TensorTrain; cutoff::Real=default_cutoff(), maxdim::Int=default_maxdim(), kwargs...)::TensorTrain
+function truncate(stt::TensorTrain; cutoff::Real=default_cutoff(), maxdim::Int=default_maxdim(), abs_cutoff::Real=default_abs_cutoff(), kwargs...)::TensorTrain
     mps = ITensorMPS.MPS(stt)
-    ITensorMPS.truncate!(mps; cutoff=cutoff, maxdim=maxdim, kwargs...)
+    
+    # Calculate adjusted cutoff if abs_cutoff is specified
+    adjusted_cutoff = if abs_cutoff != 0.0
+        norm2 = LinearAlgebra.norm(stt)^2
+        cutoff + abs_cutoff / norm2
+    else
+        cutoff
+    end
+    
+    ITensorMPS.truncate!(mps; cutoff=adjusted_cutoff, maxdim=maxdim, kwargs...)
     return TensorTrain(mps)
 end
 
@@ -1062,6 +1148,132 @@ by delegating to ITensorMPS.orthocenter after converting to MPS.
 function orthocenter(tt::TensorTrain)
     mps = ITensorMPS.MPS(tt)
     return ITensorMPS.orthocenter(mps)
+end
+
+"""
+    evaluate(tt::TensorTrain, sites::Vector{Index}, values::Vector{Int})
+
+Evaluate a TensorTrain at specific site index values.
+
+This function evaluates the tensor train by contracting it with onehot tensors
+at each site corresponding to the given values.
+
+# Arguments
+- `tt::TensorTrain`: The tensor train to evaluate
+- `sites::Vector{Index}`: Vector of site indices (one per tensor)
+- `values::Vector{Int}`: Vector of values (one per site)
+
+# Returns
+- The scalar evaluation result
+
+# Examples
+```julia
+sites = siteinds(tt)
+values = [1, 2, 1]
+result = evaluate(tt, sites, values)
+```
+"""
+function evaluate(tt::TensorTrain, sites::Vector{Index}, values::Vector{Int})
+    length(tt) == length(sites) || error("Length mismatch: TensorTrain has $(length(tt)) tensors but $(length(sites)) site indices")
+    length(sites) == length(values) || error("Length mismatch: $(length(sites)) site indices but $(length(values)) values")
+    
+    # Evaluate by contracting each tensor with onehot tensors
+    result = reduce(*, [
+        tt[n] * ITensors.onehot(sites[n] => values[n])
+        for n in 1:length(tt)
+    ])
+    return only(result)
+end
+
+"""
+    evaluate(tt::TensorTrain, sites::Vector{Vector{Index}}, values::Vector{Int})
+
+Evaluate a TensorTrain at specific site index values.
+
+This function evaluates the tensor train by contracting it with onehot tensors
+at each site corresponding to the given values.
+
+# Arguments
+- `tt::TensorTrain`: The tensor train to evaluate
+- `sites::Vector{Vector{Index}}`: Vector of site index vectors (one per tensor)
+- `values::Vector{Int}`: Vector of values (one per site)
+
+# Returns
+- The scalar evaluation result
+
+# Examples
+```julia
+sites = siteinds(tt)
+values = [1, 2, 1]
+result = evaluate(tt, sites, values)
+```
+"""
+function evaluate(tt::TensorTrain, sites::Vector{Vector{Index}}, values::Vector{Int})
+    length(tt) == length(sites) || error("Length mismatch: TensorTrain has $(length(tt)) tensors but $(length(sites)) site groups")
+    length(sites) == length(values) || error("Length mismatch: $(length(sites)) site groups but $(length(values)) values")
+    
+    # Evaluate by contracting each tensor with onehot tensors
+    result = reduce(*, [
+        tt[n] * reduce(*, [ITensors.onehot(idx => values[n]) for idx in sites[n]])
+        for n in 1:length(tt)
+    ])
+    return only(result)
+end
+
+"""
+    evaluate(tt::TensorTrain, pairs::Vector{Tuple{Index, Int}})
+
+Evaluate a TensorTrain at specific site index values using (index, value) pairs.
+
+This function evaluates the tensor train by contracting it with onehot tensors
+for each (index, value) pair.
+
+# Arguments
+- `tt::TensorTrain`: The tensor train to evaluate
+- `pairs::Vector{Tuple{Index, Int}}`: Vector of (index, value) pairs
+
+# Returns
+- The scalar evaluation result
+
+# Examples
+```julia
+sites = siteinds(tt)
+pairs = collect(zip(sites[1], [1, 2]))
+result = evaluate(tt, pairs)
+```
+"""
+function evaluate(tt::TensorTrain, pairs::Vector{Tuple{Index, Int}})
+    # Group pairs by tensor position
+    sites = siteinds(tt)
+    site_to_pos = Dict{Index, Int}()
+    for (pos, site_vec) in enumerate(sites)
+        for site in site_vec
+            site_to_pos[site] = pos
+        end
+    end
+    
+    # Group pairs by tensor position
+    tensor_pairs = Dict{Int, Vector{Tuple{Index, Int}}}()
+    for pair in pairs
+        idx, val = pair
+        pos = get(site_to_pos, idx, nothing)
+        pos === nothing && error("Index $idx not found in TensorTrain")
+        if !haskey(tensor_pairs, pos)
+            tensor_pairs[pos] = Vector{Tuple{Index, Int}}()
+        end
+        push!(tensor_pairs[pos], pair)
+    end
+    
+    # Evaluate by contracting each tensor with onehot tensors
+    result = reduce(*, [
+        if haskey(tensor_pairs, n)
+            tt[n] * reduce(*, [ITensors.onehot(idx => val) for (idx, val) in tensor_pairs[n]])
+        else
+            tt[n]
+        end
+        for n in 1:length(tt)
+    ])
+    return only(result)
 end
 
 #===

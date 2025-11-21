@@ -51,3 +51,17 @@ The default is `1`, which performs a single sweep.
 - `Int`: The default number of sweeps
 """
 default_nsweeps() = 1
+
+"""
+    default_abs_cutoff()
+
+Return the default absolute cutoff threshold for truncating small singular values.
+
+The default is `0.0`, which means no absolute cutoff is applied.
+When `abs_cutoff > 0.0`, the effective cutoff becomes `cutoff * norm2 + abs_cutoff`,
+where `norm2` is the squared norm of the tensor train.
+
+# Returns
+- `Float64`: The default absolute cutoff value (0.0)
+"""
+default_abs_cutoff() = 0.0

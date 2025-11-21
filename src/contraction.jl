@@ -67,50 +67,14 @@ result = contract(M1, M2)  # Using default fit algorithm
 result = contract(M1, M2; alg=Algorithm"densitymatrix"(), maxdim=100)
 ```
 """
-function contract(M1::TensorTrain, M2::TensorTrain; alg=Algorithm"fit"(), cutoff::Real=default_cutoff(), maxdim::Int=default_maxdim(), nsweeps::Int=default_nsweeps(), kwargs...)::TensorTrain
-    # Detect MPS-like vs MPO-like by counting physical indices per site
-    is_mps1 = begin
-        sites_per_tensor = siteinds(M1)
-        length(M1) > 0 && all(length(s) == 1 for s in sites_per_tensor)
-    end
-    is_mps2 = begin
-        sites_per_tensor = siteinds(M2)
-        length(M2) > 0 && all(length(s) == 1 for s in sites_per_tensor)
-    end
-    
-    # Convert to ITensorMPS types based on detected type
-    M1_ = is_mps1 ? ITensorMPS.MPS(M1) : ITensorMPS.MPO(M1)
-    M2_ = is_mps2 ? ITensorMPS.MPS(M2) : ITensorMPS.MPO(M2)
+function contract(M1::TensorTrain, M2::TensorTrain; alg::Union{String, Algorithm}=Algorithm"fit"(), cutoff::Real=default_cutoff(), maxdim::Int=default_maxdim(), nsweeps::Int=default_nsweeps(), kwargs...)::TensorTrain
+    # Convert both M1 and M2 to MPO format for T4A implementation
+    M1_ = ITensorMPS.MPO(M1)
+    M2_ = ITensorMPS.MPO(M2)
     
     alg = Algorithm(alg)
     
-    # Handle MPO * MPS case
-    if !is_mps1 && is_mps2
-        # MPO * MPS: use ITensorMPS.contract
-        # Only pass nsweeps for fit algorithm, otherwise remove it from kwargs
-        if alg == Algorithm"fit"()
-            result = ITensorMPS.contract(M1_, M2_; alg=alg, cutoff=cutoff, maxdim=maxdim, nsweeps=nsweeps, kwargs...)
-        else
-            # Remove nsweeps from kwargs for non-fit algorithms
-            kwargs_dict = Dict(kwargs)
-            delete!(kwargs_dict, :nsweeps)
-            result = ITensorMPS.contract(M1_, M2_; alg=alg, cutoff=cutoff, maxdim=maxdim, kwargs_dict...)
-        end
-        return TensorTrain(result)
-    elseif is_mps1 && !is_mps2
-        # MPS * MPO: use ITensorMPS.contract (commutative)
-        # Only pass nsweeps for fit algorithm, otherwise remove it from kwargs
-        if alg == Algorithm"fit"()
-            result = ITensorMPS.contract(M2_, M1_; alg=alg, cutoff=cutoff, maxdim=maxdim, nsweeps=nsweeps, kwargs...)
-        else
-            # Remove nsweeps from kwargs for non-fit algorithms
-            kwargs_dict = Dict(kwargs)
-            delete!(kwargs_dict, :nsweeps)
-            result = ITensorMPS.contract(M2_, M1_; alg=alg, cutoff=cutoff, maxdim=maxdim, kwargs_dict...)
-        end
-        return TensorTrain(result)
-    else
-        # MPO * MPO: use T4AITensorCompat algorithms
+    # Use T4AITensorCompat algorithms
     if alg == Algorithm"densitymatrix"()
         return TensorTrain(ContractionImpl.contract_densitymatrix(M1_, M2_; cutoff, maxdim, kwargs...))
     elseif alg == Algorithm"fit"()
@@ -121,7 +85,6 @@ function contract(M1::TensorTrain, M2::TensorTrain; alg=Algorithm"fit"(), cutoff
         return TensorTrain(ITensorMPS.contract(M1_, M2_; alg=Algorithm"naive"(), cutoff, maxdim, kwargs...))
     else
         error("Unknown algorithm: $alg")
-        end
     end
 end
 
@@ -197,7 +160,7 @@ using `contract` internally and adjusting prime levels for compatibility.
 - `nsweeps::Int`: Number of sweeps for variational algorithms. Defaults to `default_nsweeps()`.
 - `kwargs...`: Additional keyword arguments passed to contract
 """
-function product(A::TensorTrain, Ψ::TensorTrain; alg=Algorithm"fit"(), cutoff=default_cutoff(), maxdim=default_maxdim(), nsweeps=default_nsweeps(), kwargs...)
+function product(A::TensorTrain, Ψ::TensorTrain; alg::Union{String, Algorithm}=Algorithm"fit"(), cutoff=default_cutoff(), maxdim=default_maxdim(), nsweeps=default_nsweeps(), kwargs...)
     if :algorithm ∈ keys(kwargs)
         error("keyword argument :algorithm is not allowed")
     end
@@ -208,6 +171,16 @@ function product(A::TensorTrain, Ψ::TensorTrain; alg=Algorithm"fit"(), cutoff=d
     # Warn if cutoff is too small for densitymatrix algorithm
     if alg_ == Algorithm("densitymatrix") && cutoff <= 1e-10
         @warn "cutoff is too small for densitymatrix algorithm. Use fit algorithm instead."
+    end
+    
+    # Check that A is MPO-like (has 2 or more physical indices per site)
+    is_mpo_like_A = begin
+        sites_per_tensor = siteinds(A)
+        length(A) > 0 && all(length(s) >= 2 for s in sites_per_tensor)
+    end
+    
+    if !is_mpo_like_A
+        error("First argument `A` must be MPO-like (have 2 or more physical indices per site), but got a tensor train with $(length(A) > 0 ? length(siteinds(A)[1]) : 0) physical index(es) per site")
     end
     
     # Detect MPS-like vs MPO-like by counting physical indices per site:
