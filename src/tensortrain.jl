@@ -809,7 +809,7 @@ end
 
 
 """
-    truncate!(stt::TensorTrain; cutoff::Real=default_cutoff(), maxdim::Int=default_maxdim(), kwargs...)
+    truncate!(stt::TensorTrain; cutoff::Real=default_cutoff(), maxdim::Int=default_maxdim(), abs_cutoff::Real=default_abs_cutoff(), kwargs...)
 
 Truncate a TensorTrain in-place by removing small singular values.
 
@@ -820,16 +820,29 @@ applying ITensorMPS.truncate!, and updating the tensor data.
 - `stt::TensorTrain`: The tensor train to truncate (modified in-place)
 
 # Keyword Arguments
-- `cutoff::Real`: Cutoff threshold for singular values (default: `default_cutoff()`)
+- `cutoff::Real`: Relative cutoff threshold for singular values (default: `default_cutoff()`)
 - `maxdim::Int`: Maximum bond dimension (default: `default_maxdim()`)
+- `abs_cutoff::Real`: Absolute cutoff threshold (default: `default_abs_cutoff()`). 
+  When `abs_cutoff > 0.0`, the effective cutoff becomes `cutoff + abs_cutoff/norm2`,
+  where `norm2` is the squared norm of the tensor train. This ensures the total error
+  is bounded by `cutoff * norm2 + abs_cutoff`.
 - `kwargs...`: Additional keyword arguments passed to ITensorMPS.truncate!
 
 # Returns
 - `TensorTrain`: The modified tensor train (same object as input)
 """
-function truncate!(stt::TensorTrain; cutoff::Real=default_cutoff(), maxdim::Int=default_maxdim(), kwargs...)::TensorTrain
+function truncate!(stt::TensorTrain; cutoff::Real=default_cutoff(), maxdim::Int=default_maxdim(), abs_cutoff::Real=default_abs_cutoff(), kwargs...)::TensorTrain
     mps = ITensorMPS.MPS(stt)
-    ITensorMPS.truncate!(mps; cutoff=cutoff, maxdim=maxdim, kwargs...)
+    
+    # Calculate adjusted cutoff if abs_cutoff is specified
+    adjusted_cutoff = if abs_cutoff != 0.0
+        norm2 = LinearAlgebra.norm(stt)^2
+        cutoff + abs_cutoff / norm2
+    else
+        cutoff
+    end
+    
+    ITensorMPS.truncate!(mps; cutoff=adjusted_cutoff, maxdim=maxdim, kwargs...)
     # Update in place
     for i in 1:length(stt)
         stt[i] = mps[i]
@@ -838,7 +851,7 @@ function truncate!(stt::TensorTrain; cutoff::Real=default_cutoff(), maxdim::Int=
 end
 
 """
-    truncate(stt::TensorTrain; cutoff::Real=default_cutoff(), maxdim::Int=default_maxdim(), kwargs...)
+    truncate(stt::TensorTrain; cutoff::Real=default_cutoff(), maxdim::Int=default_maxdim(), abs_cutoff::Real=default_abs_cutoff(), kwargs...)
 
 Truncate a TensorTrain by removing small singular values, returning a new object.
 
@@ -849,16 +862,29 @@ applying ITensorMPS.truncate!, and creating a new TensorTrain from the result.
 - `stt::TensorTrain`: The tensor train to truncate
 
 # Keyword Arguments
-- `cutoff::Real`: Cutoff threshold for singular values (default: `default_cutoff()`)
+- `cutoff::Real`: Relative cutoff threshold for singular values (default: `default_cutoff()`)
 - `maxdim::Int`: Maximum bond dimension (default: `default_maxdim()`)
+- `abs_cutoff::Real`: Absolute cutoff threshold (default: `default_abs_cutoff()`). 
+  When `abs_cutoff > 0.0`, the effective cutoff becomes `cutoff + abs_cutoff/norm2`,
+  where `norm2` is the squared norm of the tensor train. This ensures the total error
+  is bounded by `cutoff * norm2 + abs_cutoff`.
 - `kwargs...`: Additional keyword arguments passed to ITensorMPS.truncate!
 
 # Returns
 - `TensorTrain`: A new truncated tensor train
 """
-function truncate(stt::TensorTrain; cutoff::Real=default_cutoff(), maxdim::Int=default_maxdim(), kwargs...)::TensorTrain
+function truncate(stt::TensorTrain; cutoff::Real=default_cutoff(), maxdim::Int=default_maxdim(), abs_cutoff::Real=default_abs_cutoff(), kwargs...)::TensorTrain
     mps = ITensorMPS.MPS(stt)
-    ITensorMPS.truncate!(mps; cutoff=cutoff, maxdim=maxdim, kwargs...)
+    
+    # Calculate adjusted cutoff if abs_cutoff is specified
+    adjusted_cutoff = if abs_cutoff != 0.0
+        norm2 = LinearAlgebra.norm(stt)^2
+        cutoff + abs_cutoff / norm2
+    else
+        cutoff
+    end
+    
+    ITensorMPS.truncate!(mps; cutoff=adjusted_cutoff, maxdim=maxdim, kwargs...)
     return TensorTrain(mps)
 end
 
@@ -1122,6 +1148,132 @@ by delegating to ITensorMPS.orthocenter after converting to MPS.
 function orthocenter(tt::TensorTrain)
     mps = ITensorMPS.MPS(tt)
     return ITensorMPS.orthocenter(mps)
+end
+
+"""
+    evaluate(tt::TensorTrain, sites::Vector{Index}, values::Vector{Int})
+
+Evaluate a TensorTrain at specific site index values.
+
+This function evaluates the tensor train by contracting it with onehot tensors
+at each site corresponding to the given values.
+
+# Arguments
+- `tt::TensorTrain`: The tensor train to evaluate
+- `sites::Vector{Index}`: Vector of site indices (one per tensor)
+- `values::Vector{Int}`: Vector of values (one per site)
+
+# Returns
+- The scalar evaluation result
+
+# Examples
+```julia
+sites = siteinds(tt)
+values = [1, 2, 1]
+result = evaluate(tt, sites, values)
+```
+"""
+function evaluate(tt::TensorTrain, sites::Vector{Index}, values::Vector{Int})
+    length(tt) == length(sites) || error("Length mismatch: TensorTrain has $(length(tt)) tensors but $(length(sites)) site indices")
+    length(sites) == length(values) || error("Length mismatch: $(length(sites)) site indices but $(length(values)) values")
+    
+    # Evaluate by contracting each tensor with onehot tensors
+    result = reduce(*, [
+        tt[n] * ITensors.onehot(sites[n] => values[n])
+        for n in 1:length(tt)
+    ])
+    return only(result)
+end
+
+"""
+    evaluate(tt::TensorTrain, sites::Vector{Vector{Index}}, values::Vector{Int})
+
+Evaluate a TensorTrain at specific site index values.
+
+This function evaluates the tensor train by contracting it with onehot tensors
+at each site corresponding to the given values.
+
+# Arguments
+- `tt::TensorTrain`: The tensor train to evaluate
+- `sites::Vector{Vector{Index}}`: Vector of site index vectors (one per tensor)
+- `values::Vector{Int}`: Vector of values (one per site)
+
+# Returns
+- The scalar evaluation result
+
+# Examples
+```julia
+sites = siteinds(tt)
+values = [1, 2, 1]
+result = evaluate(tt, sites, values)
+```
+"""
+function evaluate(tt::TensorTrain, sites::Vector{Vector{Index}}, values::Vector{Int})
+    length(tt) == length(sites) || error("Length mismatch: TensorTrain has $(length(tt)) tensors but $(length(sites)) site groups")
+    length(sites) == length(values) || error("Length mismatch: $(length(sites)) site groups but $(length(values)) values")
+    
+    # Evaluate by contracting each tensor with onehot tensors
+    result = reduce(*, [
+        tt[n] * reduce(*, [ITensors.onehot(idx => values[n]) for idx in sites[n]])
+        for n in 1:length(tt)
+    ])
+    return only(result)
+end
+
+"""
+    evaluate(tt::TensorTrain, pairs::Vector{Tuple{Index, Int}})
+
+Evaluate a TensorTrain at specific site index values using (index, value) pairs.
+
+This function evaluates the tensor train by contracting it with onehot tensors
+for each (index, value) pair.
+
+# Arguments
+- `tt::TensorTrain`: The tensor train to evaluate
+- `pairs::Vector{Tuple{Index, Int}}`: Vector of (index, value) pairs
+
+# Returns
+- The scalar evaluation result
+
+# Examples
+```julia
+sites = siteinds(tt)
+pairs = collect(zip(sites[1], [1, 2]))
+result = evaluate(tt, pairs)
+```
+"""
+function evaluate(tt::TensorTrain, pairs::Vector{Tuple{Index, Int}})
+    # Group pairs by tensor position
+    sites = siteinds(tt)
+    site_to_pos = Dict{Index, Int}()
+    for (pos, site_vec) in enumerate(sites)
+        for site in site_vec
+            site_to_pos[site] = pos
+        end
+    end
+    
+    # Group pairs by tensor position
+    tensor_pairs = Dict{Int, Vector{Tuple{Index, Int}}}()
+    for pair in pairs
+        idx, val = pair
+        pos = get(site_to_pos, idx, nothing)
+        pos === nothing && error("Index $idx not found in TensorTrain")
+        if !haskey(tensor_pairs, pos)
+            tensor_pairs[pos] = Vector{Tuple{Index, Int}}()
+        end
+        push!(tensor_pairs[pos], pair)
+    end
+    
+    # Evaluate by contracting each tensor with onehot tensors
+    result = reduce(*, [
+        if haskey(tensor_pairs, n)
+            tt[n] * reduce(*, [ITensors.onehot(idx => val) for (idx, val) in tensor_pairs[n]])
+        else
+            tt[n]
+        end
+        for n in 1:length(tt)
+    ])
+    return only(result)
 end
 
 #===

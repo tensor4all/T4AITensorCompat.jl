@@ -30,8 +30,8 @@ export contract
 export fit  # Fit function for summing multiple tensor trains with coefficients
 export truncate, truncate!
 export maxlinkdim, siteinds
-export linkinds, linkind, findsite, findsites, isortho, orthocenter  # Functions for compatibility
-export default_maxdim, default_cutoff, default_nsweeps
+export linkinds, linkind, findsite, findsites, isortho, orthocenter, evaluate  # Functions for compatibility
+export default_maxdim, default_cutoff, default_nsweeps, default_abs_cutoff
 export lognorm  # Log norm function
 export random_mps, random_mpo  # Random tensor train generation
 export product  # Official API name (match ITensorMPS)
