@@ -1,7 +1,7 @@
 @testitem "tensortrain.jl" begin
     include("util.jl")
 
-    import T4AITensorCompat: TensorTrain, dist, siteinds, random_mps, random_mpo
+    import T4AITensorCompat: TensorTrain, dist, siteinds, random_mps, random_mpo, default_abs_cutoff
     import ITensors: ITensor, Index, random_itensor, dim, inds
     import ITensorMPS
     import ITensors: Algorithm, @Algorithm_str
@@ -682,6 +682,55 @@
         a_plus_a_truncated_copy = T4AITensorCompat.truncate(a_plus_a; maxdim=10)
 
         @test relative_error(a_plus_a, a_plus_a_truncated_copy) < 1e-13
+    end
+
+    @testset "TensorTrain truncate with abs_cutoff" begin
+        # Create a simple 2-site MPS with larger bond dimension
+        i1 = Index(2, "i1")
+        i2 = Index(2, "i2")
+        l1 = Index(5, "Link,l1")
+
+        t1 = random_itensor(i1, l1)
+        t2 = random_itensor(l1, i2)
+
+        # Create TensorTrain
+        a = TensorTrain([t1, t2], 1, 5)
+
+        # Test that a + a doubles the bond dimension
+        a_plus_a = a + a
+        original_norm2 = norm(a_plus_a)^2
+        original_maxdim = T4AITensorCompat.maxlinkdim(a_plus_a)
+
+        # Test default_abs_cutoff
+        @test default_abs_cutoff() == 0.0
+
+        # Test truncate with abs_cutoff = 0.0 (should behave same as default)
+        a_truncated_default = T4AITensorCompat.truncate(a_plus_a; maxdim=10, abs_cutoff=0.0)
+        a_truncated_no_abs = T4AITensorCompat.truncate(a_plus_a; maxdim=10)
+        @test relative_error(a_truncated_default, a_truncated_no_abs) < 1e-14
+
+        # Test truncate with abs_cutoff > 0.0 (should result in more aggressive truncation)
+        # Use a relatively large abs_cutoff to see the effect
+        abs_cutoff_value = original_norm2 * 1e-6  # Small but non-negligible
+        a_truncated_abs = T4AITensorCompat.truncate(a_plus_a; maxdim=10, abs_cutoff=abs_cutoff_value)
+        
+        # With abs_cutoff, the effective cutoff is larger, so truncation should be more aggressive
+        # The bond dimension should be smaller or equal
+        @test T4AITensorCompat.maxlinkdim(a_truncated_abs) <= T4AITensorCompat.maxlinkdim(a_truncated_no_abs)
+        
+        # The error should be larger when using abs_cutoff (more aggressive truncation)
+        error_with_abs = relative_error(a_plus_a, a_truncated_abs)
+        error_without_abs = relative_error(a_plus_a, a_truncated_no_abs)
+        @test error_with_abs >= error_without_abs - 1e-14  # Allow small numerical differences
+
+        # Test truncate! with abs_cutoff
+        a_plus_a_copy = deepcopy(a_plus_a)
+        T4AITensorCompat.truncate!(a_plus_a_copy; maxdim=10, abs_cutoff=abs_cutoff_value)
+        @test relative_error(a_plus_a, a_plus_a_copy) ≈ error_with_abs atol=1e-14
+
+        # Test that abs_cutoff is only computed when != 0.0
+        # This is tested implicitly by the fact that the code runs without errors
+        # and produces correct results
     end
 
     @testset "TensorTrain siteinds function - random_mps" begin
